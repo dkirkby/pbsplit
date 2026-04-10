@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Split-Step Trainer</title>
+  <style>
+    /* ── Variables ───────────────────────────────────────────── */
+    :root {
+      --bg:      #111;
+      --fg:      #e8e8e8;
+      --accent:  #aaff00;
+      --warn:    #ff5533;
+      --muted:   #555;
+      --radius:  8px;
+    }
+
+    /* ── Reset ───────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: system-ui, sans-serif;
+      font-size: 16px;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    #header {
+      padding: 10px 16px 6px;
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    #header h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.03em;
+    }
+    #status-text {
+      font-size: 0.8rem;
+      color: #999;
+    }
+
+    /* ── Drill Stage ─────────────────────────────────────────── */
+    #stage {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      min-height: 280px;
+    }
+
+    /* Countdown circle */
+    #circle {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: var(--circle-d);
+      height: var(--circle-d);
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      border: 4px solid var(--accent);
+      box-sizing: content-box;
+      pointer-events: none;
+      visibility: hidden;
+    }
+
+    /* Foot SVGs */
+    .foot {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      height: 20dvh;
+      aspect-ratio: 317 / 470;
+      overflow: visible;
+      color: var(--fg); /* currentColor source for child <use> fill */
+    }
+
+    /*
+     * Neutral stance (§10.2):
+     *   left  center: (−70, +80) from stage center, rotate −8°
+     *   right center: (+70, +80) from stage center, rotate  +8°
+     * translate(-50%,-50%) re-centers the element on its own origin first.
+     */
+    #foot-left {
+      transform: translate(calc(-50% - 70px), calc(-50% + 80px)) rotate(-8deg);
+    }
+    #foot-right {
+      transform: translate(calc(-50% + 70px), calc(-50% + 80px)) rotate(8deg);
+    }
+
+    /* ── Toolbar (always visible) ────────────────────────────── */
+    #toolbar {
+      flex-shrink: 0;
+      background: #1a1a1a;
+      border-top: 1px solid #2a2a2a;
+      padding: 10px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      min-height: 44px;
+      padding: 0 16px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    #btn-start {
+      background: var(--accent);
+      color: #111;
+      flex: 1;
+    }
+    #btn-stop {
+      background: var(--warn);
+      color: #fff;
+      flex: 1;
+    }
+    #btn-audio {
+      background: #333;
+      color: var(--fg);
+      flex: 1;
+    }
+    #btn-settings {
+      background: #2a2a2a;
+      color: var(--fg);
+      font-size: 1.25rem;
+      padding: 0 14px;
+      border: 1px solid #3a3a3a;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    #btn-settings[aria-expanded="true"] {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* Validation message */
+    #validation-msg {
+      font-size: 0.78rem;
+      color: var(--warn);
+      min-height: 1em;
+      padding: 0 2px;
+    }
+
+    /* ── Config Panel (collapsible) ───────────────────────────── */
+    #config-panel {
+      flex-shrink: 0;
+      background: #161616;
+      border-top: 1px solid #2a2a2a;
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.28s ease, padding 0.28s ease;
+      padding: 0 16px;
+    }
+    #config-panel.open {
+      max-height: 480px;
+      padding: 16px 16px 20px;
+      overflow-y: auto;
+    }
+
+    .config-section {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Timing inputs */
+    .inputs-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 16px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field label {
+      font-size: 0.75rem;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .field input[type="number"] {
+      background: #222;
+      color: var(--fg);
+      border: 1px solid #333;
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      font-size: 0.95rem;
+      width: 100%;
+      min-height: 44px;
+    }
+    .field input[type="number"]:focus {
+      outline: 1px solid var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* Movement checklist */
+    .movements-label {
+      font-size: 0.75rem;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+    .movements-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .movement-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      min-height: 44px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      user-select: none;
+    }
+    .movement-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .movement-item:has(input:checked) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .foot { transition-duration: 30ms !important; }
+      #circle { transition-duration: 30ms !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────── -->
+<header id="header">
+  <h1>Split-Step Trainer</h1>
+  <span id="status-text">Select movements and press Start</span>
+</header>
+
+<!-- ── Drill Stage ────────────────────────────────────────────── -->
+<main id="stage">
+
+  <!-- Countdown circle -->
+  <div id="circle"></div>
+
+  <!-- Hidden SVG defs — boot symbol (right foot, viewBox 0 0 317 470) -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <defs>
+      <symbol id="boot" viewBox="0 0 317 470">
+        <path d="m99.894 66.029s10.077-23.386 25.858-33.463 23.006-14.83 31.181-14.83c8.1756 0 23.196 1.7112 38.406 12.549 15.21 10.837 21.675 16.541 26.618 24.717 4.9434 8.1756 7.415 13.309 7.0348 14.26-0.38026 0.95065-29.66 18.062-29.66 18.062s-3.2322 1.3309-3.9927 0.19013c-0.76051-1.1408-6.0841-10.077-11.218-13.879-5.1335-3.8026-12.739-7.2249-19.393-6.8447-6.6545 0.38026-12.549 0.19013-18.633 6.2743-6.0842 6.0841-7.6052 7.7953-7.6052 7.7953s-1.3309 2.6618-3.0421 1.9013c-1.7-0.761-34.6-14.831-34.6-14.831z"/>
+        <path d="m100.97 82.404 27.426 11.293s3.2266 1.3444 2.8233 2.5544c-0.40333 1.21-1.7477 2.6888-2.5544 6.3188-0.80666 3.6299-1.8822 7.5287-1.6133 8.6043 0.26889 1.0755-0.80665 4.3021-3.7644 3.4955-2.9577-0.80665-9.8142-3.0922-11.428-3.0922-1.6133 0-9.2765-1.7478-10.218-1.7478-0.94109 0-0.67221-0.13444-2.9577-1.3444s-3.7644-0.80664-6.1843-1.0755c-2.42-0.26888-3.7644 0.13444-3.8988-0.80665-0.13444-0.94109 0-3.2266 0.67221-5.3777s4.571-16.805 4.571-16.805-0.13444-2.5544 1.8822-2.6888c2.0166-0.13444 5.2432 0.67221 5.2432 0.67221z"/>
+        <path d="m93.975 124.22s18.284 4.9744 21.376 5.1088c3.0922 0.13444 5.5121 0.94109 5.5121 0.94109s2.2855-0.26888 2.0166 1.21c-0.26889 1.4789-1.21 12.503-1.0755 14.923 0.13444 2.42-0.40332 4.4366-1.8822 4.9744-1.4789 0.53777-4.3021 0.80665-7.6632 0.80665-3.361 0-7.6632 0-10.218-0.13444-2.5544-0.13444-4.571-1.0755-6.991-1.4789-2.42-0.40333-1.8822-0.80665-5.781-1.21-3.8988-0.40332-5.2432 0.26888-6.4532-0.80665s-2.0166-0.80665-1.7477-3.7644c0.26888-2.9577 0-3.8988 0.53777-6.8565s0.94109-5.3777 1.8822-8.4698c0.94109-3.0922 0.40333-3.8988 1.7477-5.1088s0.26888-1.7477 2.6888-1.7477c2.42 0 3.7644 0.40332 4.7055 0.80665 0.94109 0.40332 1.3444 0.80665 1.3444 0.80665z"/>
+        <path d="m81.875 164.68 39.391 1.4789s0.40333 12.503 1.3444 16.402c0.9411 3.8988 2.1511 5.1088 0.9411 5.781-1.21 0.67221-16.267 3.4955-22.317 4.1677-6.0499 0.67221-10.621 0.40332-13.31 0.40332h-4.7055z"/>
+        <path d="m87.387 207.97 39.123-6.4532s0.80665-0.13444 1.4789 0.94109c0.67221 1.0755 6.991 18.015 6.991 18.015s0.53777 1.21-0.26888 1.4789c-0.80665 0.26888-38.988 13.713-38.988 13.713s-0.26888 0.26889-1.21-2.42c-0.94109-2.6888-6.991-23.124-6.991-23.124z"/>
+        <path d="m101.91 251.53 38.181-17.477 9.2765 19.225s0.67221 1.4789-0.53777 1.8822c-1.21 0.40332-35.762 20.973-35.762 20.973z"/>
+        <path d="m155.01 81.194s-4.3021 2.5544-6.1843 4.7055-4.3021 6.5876-5.2432 8.8732c-0.9411 2.2855-2.1511 4.8399-2.5544 6.991-0.40332 2.1511-1.3444 4.4366-1.3444 5.1088 0 0.67221-0.26888 2.2855 0.9411 2.2855s2.0166-0.80666 2.8233-1.6133c0.80665-0.80665 3.6299-4.7055 4.9743-6.3188s1.6133-2.5544 4.7055-4.571 4.1677-2.8233 4.8399-3.361c0.67221-0.53777 1.4789-1.3444 1.4789-1.3444s1.21-3.0922 0.53777-4.7055c-0.67221-1.6133-1.0755-3.7644-1.4789-4.7055-0.40333-0.94109 0.13444-1.21-1.0755-1.4789-1.21-0.26888-2.42 0.13444-2.42 0.13444z"/>
+        <path d="m158.78 110.1-24.603 22.048-0.67221 21.107s-0.13444 0.9411 0.94109 0.67221c1.0755-0.26888 26.754-22.855 26.754-22.855s1.21-1.0755 0.80665-5.6466c-0.40333-4.571-1.4789-14.923-1.4789-14.923z"/>
+        <path d="m133.5 173.15 27.964-24.334s2.1511-1.4789 2.42 0.80665c0.26889 2.2855 1.0755 16.536 1.0755 16.536s-0.40333 2.2855-1.6133 3.0922c-1.21 0.80665-24.468 19.225-24.468 19.225s-2.42 1.4789-2.8233-0.13444c-0.40333-1.6133-2.5544-15.192-2.5544-15.192z"/>
+        <path d="m141.57 203.67 22.586-19.763s3.2266-2.2855 3.361 4.7055c0.13444 6.991 0.53777 11.428 0.53777 11.428s0 1.3444-2.0166 2.9577-17.881 15.864-17.881 15.864-2.8233 2.8233-3.6299-0.26888c-0.80665-3.0922-3.0922-11.696-3.0922-11.696z"/>
+        <path d="m168.86 221.28 1.3444 15.595-12.1 10.621-7.1254-13.848s-0.80665-2.1511 0.67221-2.6888c1.4789-0.53777 15.595-10.083 15.595-10.083z"/>
+        <path d="m172.62 78.505s9.2765 6.1843 13.713 13.848c4.4366 7.6632 5.1088 9.8143 5.1088 9.8143s0.26888 1.21-0.9411 1.21-2.8233-2.5544-4.4366-3.2266c-1.6133-0.67221-7.3943-6.0499-9.8142-6.991-2.42-0.94109-5.6466-2.1511-5.6466-2.1511l-0.67221-0.13444-0.13444-11.562s0.53777-0.67221 1.3444-0.67221c0.80665 0 1.4789-0.13444 1.4789-0.13444z"/>
+        <path d="m174.1 108.89 16.805 8.8732s1.0755 0 2.9577 0.53777 1.3444-1.4789 3.2266 1.8822c1.8822 3.361 1.0755 0.80665 2.6888 4.8399 1.6133 4.0333 3.0922 5.781 3.0922 9.142s-0.94109 4.571 0.26889 5.5121c1.21 0.94109 1.8822 1.4789 1.3444 2.5544-0.53776 1.0755-0.13444 1.6133-1.3444 1.7478-1.21 0.13444-29.443-15.192-29.443-15.192s-0.80665 1.0755-0.80665-3.4955-0.67221-13.31-0.67221-13.31-0.80665-3.0922-0.13445-3.0922h2.0166z"/>
+        <path d="m178.14 146.13 26.754 13.848s2.2855-0.53776 2.42 1.21c0.13444 1.7478 0.94109 19.36 0.94109 19.36s-0.94109 3.361-4.0332 1.21c-3.0922-2.1511-27.157-18.284-27.157-18.284s-1.8822-1.21-1.7477-3.2266c0.13444-2.0166-1.21-12.772-1.21-12.772s-0.53777-1.21 0.40333-1.7478c0.94109-0.53777 2.9577-0.53777 2.9577-0.53777z"/>
+        <path d="m178.54 182.03s23.393 10.755 26.082 13.041c2.6888 2.2855 3.7644 1.8822 3.8988 4.9744 0.13444 3.0922 0 7.6632-0.67221 11.293-0.67221 3.6299 0.26888 4.8399-2.1511 4.7055-2.42-0.13445-4.4366-0.40333-7.2599-2.1511s-19.36-12.503-19.36-12.503-2.1511-2.0166-1.7477-2.6888c0.40332-0.67221 0-15.192 0-15.192z"/>
+        <path d="m188.62 223.97 11.696 9.142s3.4955 0.13444 2.42 5.5121-2.0166 11.024-2.0166 11.024-0.26888 3.2266-4.7055-0.13444-14.385-11.159-14.385-11.159-2.6888-1.0755-2.42-3.6299c0.26888-2.5544-0.13444-12.1-0.13444-12.1s-0.53777-5.781 3.4955-2.8233c4.0332 2.9577 6.0499 4.1677 6.0499 4.1677z"/>
+        <path d="m207.17 98.672 24.737-13.041s1.8822-2.2855 3.4955-0.53777 7.2599 17.746 7.2599 17.746 2.8233 4.9744-0.94109 6.0499-21.376 9.142-21.376 9.142-2.1511-0.40333-3.7644 1.21-4.9744 5.3777-6.1843 0.9411c-1.21-4.4366-4.8399-15.326-5.9154-15.595-1.0755-0.26888-1.8822-3.8988-1.21-4.1677 0.67221-0.26889 3.8988-1.7477 3.8988-1.7477z"/>
+        <path d="m218.87 134.57s4.8399-3.4955 9.9487-4.571 4.9744-1.8822 7.6632-1.6133c2.6888 0.26888 2.2855 0.80665 3.7644-0.13445 1.4789-0.94109 0-1.7477 2.2855-2.2855 2.2855-0.53776 3.4955-0.80665 5.2432-0.80665s3.6299-0.13444 4.0333 2.42c0.40332 2.5544 2.1511 9.8142 2.42 13.31 0.26888 3.4955 1.0755 4.7055 0.67221 6.1843-0.40333 1.4789-2.8233 3.0922-4.571 3.0922-1.7478 0-8.4698 1.3444-10.621 1.7478-2.1511 0.40332-6.7221 1.6133-8.4698 1.7477-1.7478 0.13444-2.6888-0.13444-4.8399 0.40332-2.1511 0.53777-2.8233-0.13444-3.4955 0.9411-0.67221 1.0755-1.21 2.42-2.9577 2.2855-1.7477-0.13444-2.5544-0.40333-2.8233-1.4789-0.26889-1.0755-0.53777-3.4955-0.80666-6.8565-0.26888-3.361 0-4.0333-0.13444-6.1843-0.13444-2.1511-0.94109-3.6299-1.21-4.0332-0.26889-0.40333-0.13445-1.8822 0.80665-2.6888 0.94109-0.80665 3.0922-1.4789 3.0922-1.4789z"/>
+        <path d="m222.9 169.25s6.1843-1.8822 8.7387-2.0166c2.5544-0.13444 3.2266-1.21 5.781-1.4789 2.5544-0.26888 3.2266-0.53776 5.1088-0.26888s1.21 0.40333 2.9577 0.13444c1.7477-0.26888 4.0332-1.8822 5.6466-2.1511 1.6133-0.26888 2.1511-0.94109 4.0332 0.26889 1.8822 1.21 2.0166 2.42 2.1511 3.2266 0.13444 0.80665 1.21 16.671 1.21 16.671s-0.80665 4.0332-2.6888 4.3021c-1.8822 0.26889-25.678 0.9411-25.678 0.9411s-2.0166-1.4789-3.4955-0.67221c-1.4789 0.80665-2.5544 0.80665-3.4955 0.80665s-1.21-0.13444-1.21-0.13444-0.67221 0.13444-1.21-0.26889c-0.53776-0.40332-1.8822 0.67221-1.8822-2.5544v-13.713s-0.80665-1.6133 1.0755-2.1511c1.8822-0.53776 2.9577-0.94109 2.9577-0.94109z"/>
+        <path d="m220.62 202.06s18.284-0.67221 20.973-0.40333c2.6888 0.26888 4.571 0.26888 5.3777 0.26888 0.80665 0 0.67221 0.80665 2.1511 0.9411 1.4789 0.13444 2.0166-0.26889 2.6888-0.67221 0.6722-0.40333 3.7644-1.0755 4.8399-0.26889 1.0755 0.80665 2.5544 0.40333 2.42 3.4955-0.13444 3.0922-1.3444 7.2599-1.8822 11.428-0.53777 4.1677-2.5544 7.1254-2.5544 8.201 0 1.0755 0.26889 2.1511 0.26889 2.1511s-2.0166 0.40332-3.6299 0.53776c-1.6133 0.13445-7.5287-1.6133-8.4698-1.7477-0.94109-0.13444-3.2266-0.67221-5.9154-1.0755-2.6888-0.40333-1.21-0.40333-4.8399-0.67221-3.6299-0.26889-4.8399-0.40333-6.8565-0.40333s-3.361 0.67221-4.9743-0.53777-1.6133-0.53776-2.2855-1.6133c-0.67221-1.0755-0.53777-0.26888-0.80665-2.5544-0.26889-2.2855-0.40333-5.781-0.13445-6.7221 0.26889-0.9411 0-7.2599 0.40333-7.9321 0.40332-0.67221 0.13444-1.8822 1.0755-2.1511 0.9411-0.26888 2.1511-0.26888 2.1511-0.26888z"/>
+        <path d="m216.32 238.36s20.57 3.7644 24.603 5.9154c4.0332 2.1511 4.4366 1.6133 6.8565 2.42 2.42 0.80665 4.3021-0.26888 4.0333 3.7644-0.26889 4.0333-2.5544 15.73-2.5544 15.73l-1.7477 8.3354s-1.6133 4.3021-5.2432 2.5544-31.325-17.074-31.325-17.074-3.361 0.26889-2.8233-2.42c0.53777-2.6888 1.6133-7.5287 1.8822-8.201 0.26888-0.67221 2.0166-6.1843 2.2855-7.1254 0.26888-0.94109-0.94109-4.571 0.53777-4.571s3.4955 0.67221 3.4955 0.67221z"/>
+        <path d="m188.08 421.2 27.023 15.73s2.6888 1.4789 1.0755 2.9577c-1.6133 1.4789-5.3777 6.8565-6.8565 7.9321-1.4789 1.0755-18.15 13.579-24.872 14.116-6.7221 0.53777-24.065 1.21-30.653 0.13444-6.5876-1.0755-22.99-5.5121-28.502-10.621-5.5121-5.1088-17.881-14.116-19.091-16.94-1.21-2.8233-2.5544-6.4532-2.5544-6.4532s-1.0755-2.0166 0.40332-2.6888c1.4789-0.6722 2.6888-1.21 5.6466-1.8822 2.9577-0.67221 26.485-8.7387 26.485-8.7387s2.42-1.21 5.3777 0 2.2855 1.4789 3.6299 3.4955 1.6133 4.0332 5.6466 5.1088c4.0332 1.0755 5.1088 2.1511 9.6798 2.2855 4.571 0.13444 6.991 0.53777 10.218-0.26889 3.2266-0.80665 5.3777-1.21 7.3943-2.9577s3.4955-3.6299 4.7055-3.7644c1.21-0.13444 2.1511-0.13444 3.4955 0.53777s2.42 2.1511 2.42 2.1511-1.4789-0.26888-0.67221-0.13444z"/>
+        <path d="m200.86 338.65 33.61 3.7644s2.6888-0.13444 2.6888 2.0166c0 2.1511-2.2855 22.317-2.2855 22.317s-0.40333 2.42-3.0922 1.7477c-2.6888-0.67221-32.938-5.781-32.938-5.781s-2.6888-0.26888-2.6888-2.2855 1.7477-20.032 1.7477-20.032-0.26888-2.2855 1.0755-2.2855 1.8822 0.53777 1.8822 0.53777z"/>
+        <path d="m199.11 373.74s26.216 5.781 28.367 5.9154c2.1511 0.13445 4.3021 0.26889 4.9743 0.67221 0.67221 0.40333 2.0166-0.26888 1.7478 2.42-0.26889 2.6888-1.3444 7.9321-1.7478 9.5454-0.40332 1.6133-1.3444 3.0922-2.2855 3.7644-0.94109 0.67221-3.7644 0.80665-6.3188 0.26888s-17.881-4.9744-21.914-5.9154c-4.0333-0.94109-8.4698-1.3444-8.7387-2.6888-0.26888-1.3444-0.80665-3.361-0.40333-6.3188 0.40333-2.9577 0.26889-5.3777 0.67221-6.4532 0.40333-1.0755 0.80666-2.8233 2.42-2.5544 1.6133 0.26888 3.2266 1.3444 3.2266 1.3444z"/>
+        <path d="m193.73 399.69 33.476 9.6798s2.42 1.3444 1.6133 3.8988c-0.80665 2.5544-3.2266 11.024-5.3777 13.041-2.1511 2.0166-1.7477 3.0922-2.9577 2.2855-1.21-0.80665-6.8565-4.0333-11.024-6.991-4.1677-2.9577-12.234-8.6043-14.654-8.8732-2.42-0.26888-5.1088-1.7477-5.3777-2.6888-0.26888-0.9411-0.94109-1.3444-0.13444-4.4366s-0.26889-4.571 1.3444-5.2432c1.6133-0.67221 3.0922-0.67221 3.0922-0.67221z"/>
+        <path d="m100.43 392.43 33.745 0.13444s1.21-1.0755 2.1511-0.40333c0.94109 0.67221 1.21 0.80666 1.4789 2.2855 0.26888 1.4789 0.40332 5.9154 0.40332 6.7221 0 0.80665 0.9411 2.2855-1.4789 2.6888-2.42 0.40333-36.703 9.2765-36.703 9.2765s-0.80665 0.94109-0.80665-2.5544-0.26888-5.2432-0.26888-7.9321c0-2.6888-0.13444-6.0499 0.26888-7.1254s0.53777-2.8233 1.21-3.0922z"/>
+        <path d="m105.81 362.85s10.755 0.13444 15.864 0.94109c5.1088 0.80665 6.991 1.7477 9.2765 1.8822 2.2855 0.13445 6.8565 0.53777 6.8565 0.53777s2.5544 0.26889 2.6888 2.1511c0.13444 1.8822-0.13445 4.1677-0.13445 6.7221s-1.8822 4.8399-1.8822 4.8399-2.42 1.6133-6.8565 1.3444c-4.4366-0.26889-4.9744-0.26889-9.8143-0.53777s-9.9487-0.26888-11.293-0.26888h-6.7221-2.6888s-2.5544 0.53776-1.6133-3.6299c0.94109-4.1677 0.80665-6.3188 1.3444-8.201 0.53776-1.8822 0.13444-3.361 1.21-4.3021 1.0755-0.9411 3.7644-1.4789 3.7644-1.4789z"/>
+        <path d="m114.28 325.07s10.486 2.2855 13.31 2.2855c2.8233 0 2.0166-1.0755 4.4366-0.26889 2.42 0.80665 4.0333 0.67221 5.781 1.3444 1.7477 0.67221 2.6888 1.3444 4.3021 1.3444s2.5544 0.67221 2.42 4.4366c-0.13444 3.7644-1.0755 5.3777-1.0755 8.8732s-1.3444 10.083-1.3444 10.083l-37.375-1.8822s-1.21-1.8822 0.53777-5.1088c1.7477-3.2266 2.0166-5.6466 2.42-7.9321 0.40333-2.2855 0.94109-3.8988 1.8822-5.1088 0.94109-1.21 1.7477-3.2266 2.0166-4.1677 0.26889-0.9411 0.67221-4.0333 0.67221-4.0333z"/>
+        <path d="m155.82 343.22 7.3943 7.5287s0.67221 0.40333 0.40333 3.4955-1.3444 8.201-1.3444 8.201 0.94109 1.8822-0.53777 1.7477c-1.4789-0.13444-4.9743-1.3444-5.6466-2.2855-0.67221-0.94109-3.0922-2.2855-3.361-2.8233-0.26888-0.53777-1.0755-1.8822-1.21-2.42-0.13445-0.53776-1.0755-3.8988-0.67221-5.9154 0.40332-2.0166 0.40332-4.7055 1.4789-5.9154 1.0755-1.21 2.42-1.7477 2.42-1.7477z"/>
+        <path d="m153.13 372.4 5.6466 6.3188s0.80665 0.26889 0.80665 3.4955 0.13445 5.3777-1.0755 5.3777-4.1677-0.94109-5.2432-2.0166-3.4955-1.8822-4.1677-3.2266c-0.67221-1.3444-1.6133-2.6888-1.0755-4.9744 0.53777-2.2855 1.4789-4.3021 2.2855-4.7055 0.80665-0.40333 2.8233-0.26888 2.8233-0.26888z"/>
+        <path d="m149.9 397.54s2.5544 1.7477 3.8988 2.9577 2.0166 1.3444 2.1511 4.3021c0.13444 2.9577 0.53776 5.9154 0 7.2598-0.53777 1.3444-0.26889 1.8822-1.4789 1.8822s-1.7478-0.80665-2.2855-1.6133c-0.53776-0.80665-1.4789-1.6133-2.0166-2.6888-0.53777-1.0755-2.0166-2.9577-2.2855-4.3021-0.26889-1.3444-1.0755-3.0922-1.0755-3.8988 0-0.80665 0-1.8822 0.53777-2.6888 0.53777-0.80665 1.7477-1.4789 1.7477-1.4789z"/>
+        <path d="m174.91 352.9s2.1511-1.7477 3.4955-1.7477 3.2266-0.13444 4.0332-1.21c0.80666-1.0755 3.2266-2.2855 3.6299-2.2855 0.40333 0 0.80665 0.13444 0.80665 1.8822 0 1.7477-0.13444 4.0332-0.40332 5.781s-0.40333 3.8988-0.40333 4.9744c0 1.0755 2.2855 0.40333-0.53776 1.8822s-7.1254 3.6299-7.1254 3.6299l-2.42-0.13445s-1.3444-0.6722-1.4789-1.7477c-0.13444-1.0755-0.26889-2.42-0.13444-4.0332 0.13444-1.6133 0.53776-3.361 0.53776-3.8988v-3.0922z"/>
+        <path d="m172.22 381.27s5.5121-2.8233 7.7976-3.2266c2.2855-0.40332 2.6888-0.13444 2.5544 1.8822-0.13445 2.0166-0.13445 3.8988-0.13445 3.8988s0.40333 1.6133-0.6722 2.1511c-1.0755 0.53777-3.0922 2.0166-4.571 2.2855-1.4789 0.26888-4.3021 1.6133-5.2432 0.80665-0.94109-0.80665-0.94109-3.0922-0.67221-4.0332 0.26889-0.9411 0.9411-3.7644 0.9411-3.7644z"/>
+        <path d="m171.01 404.53 5.6466-4.4366s2.2855-1.0755 2.5544 0.26889c0.26888 1.3444-1.4789 4.571-1.4789 4.571s-1.3444 7.2599-2.5544 8.4698c-1.21 1.21-2.8233 2.6888-4.0333 2.9577-1.21 0.26889-2.1511 0.80665-2.1511-1.8822s0.67221-7.7976 0.67221-7.7976z"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <!-- Left foot: mirrored via translate+scale on the inner use element -->
+  <svg id="foot-left" class="foot" xmlns="http://www.w3.org/2000/svg"
+       viewBox="0 0 317 470" aria-label="Left foot" role="img">
+    <use href="#boot" transform="translate(317,0) scale(-1,1)" fill="currentColor"/>
+  </svg>
+
+  <!-- Right foot -->
+  <svg id="foot-right" class="foot" xmlns="http://www.w3.org/2000/svg"
+       viewBox="0 0 317 470" aria-label="Right foot" role="img">
+    <use href="#boot" fill="currentColor"/>
+  </svg>
+
+</main>
+
+<!-- ── Toolbar (always visible) ───────────────────────────────── -->
+<div id="toolbar">
+  <div class="btn-row">
+    <button id="btn-start" disabled aria-describedby="validation-msg">Start Drill</button>
+    <button id="btn-stop">Stop</button>
+    <button id="btn-audio">Load Audio</button>
+    <button id="btn-settings" aria-expanded="false" aria-controls="config-panel"
+            title="Settings">⚙</button>
+  </div>
+  <div id="validation-msg" role="alert" aria-live="polite">
+    Select at least one movement.
+  </div>
+</div>
+
+<!-- ── Config Panel (collapsible) ────────────────────────────── -->
+<div id="config-panel" aria-label="Drill settings">
+  <div class="config-section">
+
+    <!-- Timing inputs -->
+    <div class="inputs-grid">
+      <div class="field">
+        <label for="input-min-wait">Min Wait (s)</label>
+        <input type="number" id="input-min-wait" value="5.0" min="0.5" max="60" step="0.5">
+      </div>
+      <div class="field">
+        <label for="input-max-wait">Max Wait (s)</label>
+        <input type="number" id="input-max-wait" value="10.0" min="0.5" max="60" step="0.5">
+      </div>
+      <div class="field">
+        <label for="input-shrink">Shrink Duration (s)</label>
+        <input type="number" id="input-shrink" value="2.0" min="0.2" max="10" step="0.1">
+      </div>
+      <div class="field">
+        <label for="input-presplit">Pre-Split Buffer (s)</label>
+        <input type="number" id="input-presplit" value="0.15" min="0" max="10" step="0.05">
+      </div>
+    </div>
+
+    <!-- Movement checklist -->
+    <div>
+      <div class="movements-label">Reaction Movements</div>
+      <div class="movements-list" role="group" aria-label="Reaction movements">
+        <label class="movement-item">
+          <input type="checkbox" name="movement" value="A" id="move-a">
+          A — Volley
+        </label>
+        <label class="movement-item">
+          <input type="checkbox" name="movement" value="B" id="move-b">
+          B — Deep Drive Right
+        </label>
+        <label class="movement-item">
+          <input type="checkbox" name="movement" value="C" id="move-c">
+          C — Deep Drive Left
+        </label>
+        <label class="movement-item">
+          <input type="checkbox" name="movement" value="D" id="move-d">
+          D — Unit Turn Left
+        </label>
+        <label class="movement-item">
+          <input type="checkbox" name="movement" value="E" id="move-e">
+          E — Unit Turn Right
+        </label>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ── 1. Constants ────────────────────────────────────────────────────────────
+
+  const REACTION_DELAY_S = 0.10;
+  const RESET_DELAY_S    = 1.50;
+  const SPLIT_MS         = 120;
+  const RESET_MS         = 400;
+
+  // Neutral stance: foot center positions (px from stage center) and rotation (deg)
+  const NEUTRAL = {
+    left:  { x: -70, y: 80, r: -8 },
+    right: { x:  70, y: 80, r:  8 },
+  };
+
+  // Wide split-step stance (§10.3)
+  const SPLIT = {
+    left:  { x: -105, y: 88, r: -8 },
+    right: { x:  105, y: 88, r:  8 },
+  };
+
+  // Reaction movements: absolute foot positions from neutral (§10.4)
+  const MOVEMENTS = {
+    A: { label: 'Volley',
+         left:  { x:  -80, y:  20, r:  -8 },
+         right: { x:   80, y:  20, r:   8 }, ms: 220 },
+    B: { label: 'Deep Drive Right',
+         left:  { x:  -60, y:  60, r:   0 },
+         right: { x:  125, y:  15, r:  18 }, ms: 240 },
+    C: { label: 'Deep Drive Left',
+         left:  { x: -125, y:  15, r: -18 },
+         right: { x:   60, y:  60, r:   0 }, ms: 240 },
+    D: { label: 'Unit Turn Left',
+         left:  { x:  -90, y:  80, r: -55 },
+         right: { x:   50, y:  80, r: -35 }, ms: 220 },
+    E: { label: 'Unit Turn Right',
+         left:  { x:  -50, y:  80, r:  35 },
+         right: { x:   90, y:  80, r:  55 }, ms: 220 },
+  };
+
+  // ── 2. State ─────────────────────────────────────────────────────────────────
+
+  let circleSize = 0;
+
+  const state = {
+    top:      'setup',  // setup | ready | running | stopped
+    phase:    null,     // idleWait | anticipation | preSplit | impact | reaction | reset
+    timers:   [],
+    wakeLock: null,
+  };
+
+  // ── 3. DOM refs ──────────────────────────────────────────────────────────────
+
+  const btnStart      = document.getElementById('btn-start');
+  const btnStop       = document.getElementById('btn-stop');
+  const btnSettings   = document.getElementById('btn-settings');
+  const configPanel   = document.getElementById('config-panel');
+  const validationMsg = document.getElementById('validation-msg');
+  const statusText    = document.getElementById('status-text');
+  const circleEl      = document.getElementById('circle');
+  const footLeft      = document.getElementById('foot-left');
+  const footRight     = document.getElementById('foot-right');
+  const checkboxes    = document.querySelectorAll('input[name="movement"]');
+  const inputMinWait  = document.getElementById('input-min-wait');
+  const inputMaxWait  = document.getElementById('input-max-wait');
+  const inputShrink   = document.getElementById('input-shrink');
+  const inputPresplit = document.getElementById('input-presplit');
+
+  // ── 4. Settings persistence ──────────────────────────────────────────────────
+
+  const LS_KEYS = {
+    minWait:   'ss_minWait',
+    maxWait:   'ss_maxWait',
+    shrink:    'ss_shrink',
+    presplit:  'ss_presplit',
+    movements: 'ss_movements',
+  };
+
+  function loadSettings() {
+    const get = (k, d) => { const v = localStorage.getItem(k); return v !== null ? v : d; };
+    inputMinWait.value  = get(LS_KEYS.minWait,   '5');
+    inputMaxWait.value  = get(LS_KEYS.maxWait,  '10');
+    inputShrink.value   = get(LS_KEYS.shrink,    '2');
+    inputPresplit.value = get(LS_KEYS.presplit, '0.15');
+    const saved = get(LS_KEYS.movements, '');
+    if (saved) {
+      const enabled = new Set(saved.split(','));
+      checkboxes.forEach(cb => { cb.checked = enabled.has(cb.value); });
+    }
+  }
+
+  function saveSettings() {
+    localStorage.setItem(LS_KEYS.minWait,   inputMinWait.value);
+    localStorage.setItem(LS_KEYS.maxWait,   inputMaxWait.value);
+    localStorage.setItem(LS_KEYS.shrink,    inputShrink.value);
+    localStorage.setItem(LS_KEYS.presplit,  inputPresplit.value);
+    const enabled = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+    localStorage.setItem(LS_KEYS.movements, enabled.join(','));
+  }
+
+  // ── 5. Settings read + auto-correct ──────────────────────────────────────────
+
+  function readSettings() {
+    let minWait  = Math.max(0.5, Math.min(60,  parseFloat(inputMinWait.value)  || 5));
+    let maxWait  = Math.max(0.5, Math.min(60,  parseFloat(inputMaxWait.value)  || 10));
+    let shrink   = Math.max(0.2, Math.min(10,  parseFloat(inputShrink.value)   || 2));
+    let presplit = Math.max(0,                 parseFloat(inputPresplit.value)  || 0.15);
+    if (maxWait < minWait) maxWait = minWait;
+    presplit = Math.min(presplit, shrink);
+    inputMinWait.value  = minWait;
+    inputMaxWait.value  = maxWait;
+    inputShrink.value   = shrink;
+    inputPresplit.value = presplit;
+    return { minWait, maxWait, shrink, presplit };
+  }
+
+  // ── 6. Helpers ───────────────────────────────────────────────────────────────
+
+  function randBetween(a, b) { return a + Math.random() * (b - a); }
+
+  function enabledMovements() {
+    return Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+  }
+
+  function pickMovement() {
+    const keys = enabledMovements();
+    return MOVEMENTS[keys[Math.floor(Math.random() * keys.length)]];
+  }
+
+  function schedule(fn, delayS) {
+    const id = setTimeout(fn, delayS * 1000);
+    state.timers.push(id);
+  }
+
+  function clearAllTimers() {
+    state.timers.forEach(clearTimeout);
+    state.timers = [];
+  }
+
+  // ── 7. Rendering helpers ─────────────────────────────────────────────────────
+
+  function footTransform(pos) {
+    return `translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y}px)) rotate(${pos.r}deg)`;
+  }
+
+  function setFoot(el, pos, ms) {
+    el.style.transition = ms > 0 ? `transform ${ms}ms ease` : 'none';
+    el.style.transform  = footTransform(pos);
+  }
+
+  function setNeutral(ms) {
+    setFoot(footLeft,  NEUTRAL.left,  ms);
+    setFoot(footRight, NEUTRAL.right, ms);
+  }
+
+  function setSplit() {
+    setFoot(footLeft,  SPLIT.left,  SPLIT_MS);
+    setFoot(footRight, SPLIT.right, SPLIT_MS);
+  }
+
+  function setReaction(movement) {
+    setFoot(footLeft,  movement.left,  movement.ms);
+    setFoot(footRight, movement.right, movement.ms);
+  }
+
+  function showCircle(shrinkS) {
+    circleEl.style.transition = 'none';
+    circleEl.style.width      = circleSize + 'px';
+    circleEl.style.height     = circleSize + 'px';
+    circleEl.style.visibility = 'visible';
+    circleEl.getBoundingClientRect(); // force reflow so transition fires
+    circleEl.style.transition = `width ${shrinkS}s linear, height ${shrinkS}s linear`;
+    circleEl.style.width      = '0px';
+    circleEl.style.height     = '0px';
+  }
+
+  function hideCircle() {
+    circleEl.style.transition = 'none';
+    circleEl.style.visibility = 'hidden';
+    circleEl.style.width      = circleSize + 'px';
+    circleEl.style.height     = circleSize + 'px';
+  }
+
+  // ── 8. Wake Lock ─────────────────────────────────────────────────────────────
+
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try { state.wakeLock = await navigator.wakeLock.request('screen'); }
+    catch (_) {}
+  }
+
+  function releaseWakeLock() {
+    if (state.wakeLock) { state.wakeLock.release(); state.wakeLock = null; }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      releaseWakeLock();
+    } else if (state.top === 'running') {
+      requestWakeLock();
+    }
+  });
+
+  // ── 9. Repetition scheduler ──────────────────────────────────────────────────
+
+  function runRep(settings) {
+    if (state.top !== 'running') return;
+
+    const waitS    = randBetween(settings.minWait, settings.maxWait);
+    const shrinkS  = settings.shrink;
+    const presplit = settings.presplit;
+    const movement = pickMovement();
+
+    state.phase = 'idleWait';
+    statusText.textContent = 'Waiting…';
+
+    schedule(() => {
+      if (state.top !== 'running') return;
+      state.phase = 'anticipation';
+      statusText.textContent = 'Ready…';
+      showCircle(shrinkS);
+    }, waitS);
+
+    schedule(() => {
+      if (state.top !== 'running') return;
+      state.phase = 'preSplit';
+      setSplit();
+    }, waitS + shrinkS - presplit);
+
+    schedule(() => {
+      if (state.top !== 'running') return;
+      state.phase = 'impact';
+      statusText.textContent = 'Go!';
+      hideCircle();
+    }, waitS + shrinkS);
+
+    schedule(() => {
+      if (state.top !== 'running') return;
+      state.phase = 'reaction';
+      setReaction(movement);
+    }, waitS + shrinkS + REACTION_DELAY_S);
+
+    schedule(() => {
+      if (state.top !== 'running') return;
+      state.phase = 'reset';
+      setNeutral(RESET_MS);
+      runRep(settings); // begin next rep immediately (idleWait >> RESET_MS)
+    }, waitS + shrinkS + RESET_DELAY_S);
+  }
+
+  // ── 10. Start / Stop ─────────────────────────────────────────────────────────
+
+  function startDrill() {
+    if (state.top === 'running') return;
+    const settings = readSettings();
+    saveSettings();
+    state.top = 'running';
+    btnStart.disabled = true;
+    setNeutral(0);
+    hideCircle();
+    requestWakeLock();
+    runRep(settings);
+  }
+
+  function stopDrill() {
+    state.top   = 'stopped';
+    state.phase = null;
+    clearAllTimers();
+    setNeutral(RESET_MS);
+    hideCircle();
+    releaseWakeLock();
+    statusText.textContent = '';
+    updateStart();
+  }
+
+  // ── 11. UI state ─────────────────────────────────────────────────────────────
+
+  function updateStart() {
+    const hasMovements = enabledMovements().length > 0;
+    btnStart.disabled = !hasMovements || state.top === 'running';
+    validationMsg.textContent = hasMovements ? '' : 'Select at least one movement.';
+    if (!hasMovements) statusText.textContent = '';
+  }
+
+  // ── 12. Event listeners ──────────────────────────────────────────────────────
+
+  btnStart.addEventListener('click', startDrill);
+  btnStop.addEventListener('click',  stopDrill);
+
+  btnSettings.addEventListener('click', () => {
+    const open = configPanel.classList.toggle('open');
+    btnSettings.setAttribute('aria-expanded', String(open));
+  });
+
+  checkboxes.forEach(cb => cb.addEventListener('change', () => {
+    updateStart();
+    saveSettings();
+  }));
+
+  [inputMinWait, inputMaxWait, inputShrink, inputPresplit].forEach(el =>
+    el.addEventListener('change', saveSettings)
+  );
+
+  // ── 13. Init ─────────────────────────────────────────────────────────────────
+
+  loadSettings();
+  setNeutral(0);
+  hideCircle();
+  updateStart();
+
+  // Keep --circle-d and circleSize = 90% of the stage's smaller dimension
+  const stageEl = document.getElementById('stage');
+  new ResizeObserver(([entry]) => {
+    const { width, height } = entry.contentRect;
+    circleSize = Math.min(width, height) * 0.9;
+    document.documentElement.style.setProperty('--circle-d', `${circleSize}px`);
+  }).observe(stageEl);
+</script>
+
+</body>
+</html>
