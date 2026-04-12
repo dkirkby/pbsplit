@@ -238,6 +238,127 @@
       .foot { transition-duration: 30ms !important; }
       #circle { transition-duration: 30ms !important; }
     }
+
+    /* ── Movement Editor Overlay ─────────────────────────────── */
+    #editor-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+    }
+    #editor-overlay[hidden] { display: none; }
+
+    #editor-header {
+      flex-shrink: 0;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .editor-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    #editor-select {
+      flex: 1;
+      background: #222;
+      color: var(--fg);
+      border: 1px solid #333;
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      font-size: 0.95rem;
+      min-height: 44px;
+    }
+    #editor-name-input {
+      flex: 1;
+      background: #222;
+      color: var(--fg);
+      border: 1px solid #333;
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      font-size: 0.95rem;
+      min-height: 44px;
+    }
+    #editor-name-input:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+    #btn-editor-new    { background: #333; color: var(--fg); white-space: nowrap; }
+    #btn-editor-rename { background: #333; color: var(--fg); white-space: nowrap; }
+    #btn-editor-delete { background: var(--warn); color: #fff; white-space: nowrap; }
+
+    #editor-stage {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    .foot-ghost {
+      color: #2e2e2e;
+      pointer-events: none;
+    }
+    .foot-draggable { touch-action: none; }
+    .foot-draggable.zone-heel   { cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj4KPHBhdGggZD0iTTE2IDJMMTIgOGgzdjdIOFYxMkwyIDE2bDYgNHYtM2g3djdoLTNsNCA2IDQtNmgtM3YtN2g3djNsNi00LTYtM3YzaC03VjhoM3oiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS13aWR0aD0iMi41IiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJibGFjayIvPgo8cGF0aCBkPSJNMTYgMkwxMiA4aDN2N0g4VjEyTDIgMTZsNiA0di0zaDd2N2gtM2w0IDYgNC02aC0zdi03aDd2M2w2LTQtNi0zdjNoLTdWOGgzeiIgZmlsbD0id2hpdGUiIHN0cm9rZT0ibm9uZSIvPgo8L3N2Zz4=") 16 16, move; }
+    .foot-draggable.zone-toe    { cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIj4KPHBhdGggZD0iTTE2IDdBMTEgMTEgMCAxIDEgNSAxOCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSI0LjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8cGF0aCBkPSJNMTYgN0ExMSAxMSAwIDEgMSA1IDE4IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CjxwYXRoIGQ9Ik0xMCA3TDE2IDMgMTYgMTFaIiBmaWxsPSJibGFjayIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHBhdGggZD0iTTExIDdMMTYgMy41IDE2IDEwLjVaIiBmaWxsPSJ3aGl0ZSIgc3Ryb2tlPSJub25lIi8+Cjwvc3ZnPg==") 16 7, alias; }
+    .foot-draggable.zone-mid    { cursor: default; }
+    #editor-foot-left, #editor-foot-right { transition: none !important; }
+
+    #editor-hint {
+      position: absolute;
+      bottom: 8px;
+      left: 0; right: 0;
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    #editor-coords {
+      position: absolute;
+      top: 8px;
+      left: 0; right: 0;
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--muted);
+      pointer-events: none;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #editor-footer {
+      flex-shrink: 0;
+      background: #1a1a1a;
+      border-top: 1px solid #2a2a2a;
+      padding: 10px 12px 12px;
+      display: flex;
+      gap: 8px;
+    }
+    #btn-editor-close {
+      background: var(--accent);
+      color: #111;
+      flex: 1;
+    }
+    #editor-download-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 16px;
+      background: #333;
+      color: var(--fg);
+      border-radius: var(--radius);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    #btn-edit-movements {
+      width: 100%;
+      background: #2a2a2a;
+      color: var(--fg);
+      border: 1px solid #3a3a3a;
+      margin-top: 6px;
+    }
   </style>
 </head>
 <body>
@@ -342,34 +463,59 @@
       </div>
     </div>
 
-    <!-- Movement checklist -->
+    <!-- Movement checklist (built dynamically from positions) -->
     <div>
       <div class="movements-label">Reaction Movements</div>
-      <div class="movements-list" role="group" aria-label="Reaction movements">
-        <label class="movement-item">
-          <input type="checkbox" name="movement" value="A" id="move-a">
-          A — Volley
-        </label>
-        <label class="movement-item">
-          <input type="checkbox" name="movement" value="B" id="move-b">
-          B — Deep Drive Right
-        </label>
-        <label class="movement-item">
-          <input type="checkbox" name="movement" value="C" id="move-c">
-          C — Deep Drive Left
-        </label>
-        <label class="movement-item">
-          <input type="checkbox" name="movement" value="D" id="move-d">
-          D — Unit Turn Left
-        </label>
-        <label class="movement-item">
-          <input type="checkbox" name="movement" value="E" id="move-e">
-          E — Unit Turn Right
-        </label>
-      </div>
+      <div id="movements-list" class="movements-list" role="group" aria-label="Reaction movements"></div>
+      <button id="btn-edit-movements">Edit Movements</button>
     </div>
 
   </div>
+</div>
+
+<!-- ── Movement Editor Overlay ────────────────────────────── -->
+<div id="editor-overlay" hidden>
+
+  <div id="editor-header">
+    <div class="editor-row">
+      <select id="editor-select" aria-label="Movement to edit"></select>
+      <button id="btn-editor-new">+ New</button>
+    </div>
+    <div class="editor-row">
+      <input id="editor-name-input" type="text" placeholder="Label" aria-label="Movement label">
+      <button id="btn-editor-rename">Rename</button>
+      <button id="btn-editor-delete">Delete</button>
+    </div>
+  </div>
+
+  <div id="editor-stage">
+    <div id="editor-coords"></div>
+    <!-- Ghost: split stance reference (not draggable) -->
+    <svg id="editor-ghost-left" class="foot foot-ghost" xmlns="http://www.w3.org/2000/svg"
+         viewBox="0 0 317 470" aria-hidden="true">
+      <use href="#boot" transform="translate(317,0) scale(-1,1)" fill="currentColor"/>
+    </svg>
+    <svg id="editor-ghost-right" class="foot foot-ghost" xmlns="http://www.w3.org/2000/svg"
+         viewBox="0 0 317 470" aria-hidden="true">
+      <use href="#boot" fill="currentColor"/>
+    </svg>
+    <!-- Editable movement feet -->
+    <svg id="editor-foot-left" class="foot foot-draggable" xmlns="http://www.w3.org/2000/svg"
+         viewBox="0 0 317 470" aria-label="Left foot — drag to edit">
+      <use href="#boot" transform="translate(317,0) scale(-1,1)" fill="currentColor"/>
+    </svg>
+    <svg id="editor-foot-right" class="foot foot-draggable" xmlns="http://www.w3.org/2000/svg"
+         viewBox="0 0 317 470" aria-label="Right foot — drag to edit">
+      <use href="#boot" fill="currentColor"/>
+    </svg>
+    <div id="editor-hint">Drag heel to move &middot; Drag toe to rotate</div>
+  </div>
+
+  <div id="editor-footer">
+    <button id="btn-editor-close">Done</button>
+    <a id="editor-download-link" download="positions.js">&#8595; positions.js</a>
+  </div>
+
 </div>
 
 <script src="positions.js"></script>
@@ -379,17 +525,12 @@
   const REACTION_DELAY_S = 0.10;
   const RESET_DELAY_S    = 1.50;
 
-  // Position lookup map, keyed by name, built from positions.js
-  const POS = Object.fromEntries(POSITIONS.map(p => [p.name, p]));
-
-  // Reaction movements: name reference into POS (timing driven by footSpeed)
-  const MOVEMENTS = {
-    A: { label: 'Volley',           pos: 'volley'         },
-    B: { label: 'Deep Drive Right', pos: 'deepDriveRight' },
-    C: { label: 'Deep Drive Left',  pos: 'deepDriveLeft'  },
-    D: { label: 'Unit Turn Left',   pos: 'unitTurnLeft'   },
-    E: { label: 'Unit Turn Right',  pos: 'unitTurnRight'  },
-  };
+  // Working positions array (may be overridden from localStorage); keyed lookup map.
+  let positions = [];
+  let POS = {};
+  function rebuildPOS() { POS = Object.fromEntries(positions.map(p => [p.name, p])); }
+  // Returns all positions except the reserved 'neutral' and 'split' stances.
+  function reactionPositions() { return positions.filter(p => p.name !== 'neutral' && p.name !== 'split'); }
 
   // ── 2. State ─────────────────────────────────────────────────────────────────
 
@@ -416,7 +557,6 @@
   const circleEl      = document.getElementById('circle');
   const footLeft      = document.getElementById('foot-left');
   const footRight     = document.getElementById('foot-right');
-  const checkboxes    = document.querySelectorAll('input[name="movement"]');
   const inputMinWait   = document.getElementById('input-min-wait');
   const inputMaxWait   = document.getElementById('input-max-wait');
   const inputShrink    = document.getElementById('input-shrink');
@@ -430,7 +570,24 @@
     shrink:    'ss_shrink',
     footSpeed: 'ss_footSpeed',
     movements: 'ss_movements',
+    positions: 'ss_positions',
   };
+
+  function loadCustomPositions() {
+    const saved = localStorage.getItem(LS_KEYS.positions);
+    if (saved) {
+      try { positions = JSON.parse(saved); } catch (_) { positions = null; }
+    }
+    if (!positions || !positions.length) {
+      positions = POSITIONS.map(p => ({ ...p, left: { ...p.left }, right: { ...p.right } }));
+    }
+    rebuildPOS();
+  }
+
+  function saveCustomPositions() {
+    localStorage.setItem(LS_KEYS.positions, JSON.stringify(positions));
+    updateDownloadLink();
+  }
 
   function loadSettings() {
     const get = (k, d) => { const v = localStorage.getItem(k); return v !== null ? v : d; };
@@ -438,11 +595,6 @@
     inputMaxWait.value   = get(LS_KEYS.maxWait,   '10');
     inputShrink.value    = get(LS_KEYS.shrink,     '2');
     inputFootSpeed.value = get(LS_KEYS.footSpeed, '2.5');
-    const saved = get(LS_KEYS.movements, '');
-    if (saved) {
-      const enabled = new Set(saved.split(','));
-      checkboxes.forEach(cb => { cb.checked = enabled.has(cb.value); });
-    }
   }
 
   function saveSettings() {
@@ -450,8 +602,35 @@
     localStorage.setItem(LS_KEYS.maxWait,   inputMaxWait.value);
     localStorage.setItem(LS_KEYS.shrink,    inputShrink.value);
     localStorage.setItem(LS_KEYS.footSpeed, inputFootSpeed.value);
-    const enabled = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+    const cbs = document.querySelectorAll('input[name="movement"]');
+    const enabled = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
     localStorage.setItem(LS_KEYS.movements, enabled.join(','));
+  }
+
+  function buildMovementList() {
+    const container = document.getElementById('movements-list');
+    const saved = localStorage.getItem(LS_KEYS.movements) || '';
+    // Ignore old single-letter keys (A–E) from before dynamic movements
+    const savedNames = new Set(saved.split(',').filter(n => n.length > 1));
+    const hasAnySaved = savedNames.size > 0;
+
+    container.innerHTML = '';
+    reactionPositions().forEach(pos => {
+      const lbl = document.createElement('label');
+      lbl.className = 'movement-item';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.name = 'movement';
+      cb.value = pos.name;
+      cb.id = `move-${pos.name}`;
+      cb.checked = hasAnySaved ? savedNames.has(pos.name) : true;
+      cb.addEventListener('change', () => { updateStart(); saveSettings(); });
+      lbl.appendChild(cb);
+      lbl.appendChild(document.createTextNode('\u00a0' + (pos.label || pos.name)));
+      container.appendChild(lbl);
+    });
+
+    updateStart();
   }
 
   // ── 5. Settings read + auto-correct ──────────────────────────────────────────
@@ -474,12 +653,14 @@
   function randBetween(a, b) { return a + Math.random() * (b - a); }
 
   function enabledMovements() {
-    return Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+    const cbs = document.querySelectorAll('input[name="movement"]');
+    return Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
   }
 
   function pickMovement() {
-    const keys = enabledMovements();
-    return keys.length ? MOVEMENTS[keys[Math.floor(Math.random() * keys.length)]] : null;
+    const names = enabledMovements();
+    if (!names.length) return null;
+    return POS[names[Math.floor(Math.random() * names.length)]] || null;
   }
 
   function schedule(fn, delayS) {
@@ -496,9 +677,10 @@
 
   // Convert a normalized foot position to a CSS transform string.
   // cx/cy in units of circle radius; positive cy = up (negated for CSS screen coords).
-  function footTransform(fp) {
-    return `translate(calc(-50% + ${fp.cx * minDim / 2}px), calc(-50% + ${-fp.cy * minDim / 2}px)) rotate(${fp.rotation}deg)`;
+  function footTransformFor(fp, dim) {
+    return `translate(calc(-50% + ${fp.cx * dim / 2}px), calc(-50% + ${-fp.cy * dim / 2}px)) rotate(${fp.rotation}deg)`;
   }
+  function footTransform(fp) { return footTransformFor(fp, minDim); }
 
   function dist2D(a, b) {
     const dx = b.cx - a.cx, dy = b.cy - a.cy;
@@ -534,8 +716,7 @@
     moveFoot(footRight, 'right', POS.split.right, footSpeed);
   }
 
-  function moveToReaction(movement, footSpeed) {
-    const pos = POS[movement.pos];
+  function moveToReaction(pos, footSpeed) {
     moveFoot(footLeft,  'left',  pos.left,  footSpeed);
     moveFoot(footRight, 'right', pos.right, footSpeed);
   }
@@ -662,8 +843,10 @@
   // ── 11. UI state ─────────────────────────────────────────────────────────────
 
   function updateStart() {
-    btnStart.disabled = state.top === 'running';
-    validationMsg.textContent = '';
+    const cbs = document.querySelectorAll('input[name="movement"]');
+    const anyChecked = Array.from(cbs).some(cb => cb.checked);
+    btnStart.disabled = state.top === 'running' || !anyChecked;
+    validationMsg.textContent = anyChecked ? '' : 'Select at least one movement.';
   }
 
   // ── 12. Event listeners ──────────────────────────────────────────────────────
@@ -676,20 +859,295 @@
     btnSettings.setAttribute('aria-expanded', String(open));
   });
 
-  checkboxes.forEach(cb => cb.addEventListener('change', () => {
-    updateStart();
-    saveSettings();
-  }));
-
   [inputMinWait, inputMaxWait, inputShrink, inputFootSpeed].forEach(el =>
     el.addEventListener('change', saveSettings)
   );
 
-  // ── 13. Init ─────────────────────────────────────────────────────────────────
+  // ── 13. Movement Editor ──────────────────────────────────────────────────────
 
+  let editorMinDim     = 0;
+  let editorCurrentName = null;  // name of position being edited
+  let editorWorkingPos  = null;  // {left:{cx,cy,rotation}, right:{cx,cy,rotation}} working copy
+  let editorDrag        = null;  // active drag state
+
+  const editorOverlay    = document.getElementById('editor-overlay');
+  const editorSelect     = document.getElementById('editor-select');
+  const editorNameInput  = document.getElementById('editor-name-input');
+  const editorStageEl    = document.getElementById('editor-stage');
+  const editorGhostLeft  = document.getElementById('editor-ghost-left');
+  const editorGhostRight = document.getElementById('editor-ghost-right');
+  const editorFootL      = document.getElementById('editor-foot-left');
+  const editorFootR      = document.getElementById('editor-foot-right');
+  const editorCoordsEl   = document.getElementById('editor-coords');
+  const btnEditorNew     = document.getElementById('btn-editor-new');
+  const btnEditorRename  = document.getElementById('btn-editor-rename');
+  const btnEditorDelete  = document.getElementById('btn-editor-delete');
+  const btnEditorClose   = document.getElementById('btn-editor-close');
+  const btnEditMovements = document.getElementById('btn-edit-movements');
+  const editorDlLink     = document.getElementById('editor-download-link');
+
+  function renderEditorGhosts() {
+    const s = POS.split;
+    editorGhostLeft.style.transform  = footTransformFor(s.left,  editorMinDim);
+    editorGhostRight.style.transform = footTransformFor(s.right, editorMinDim);
+  }
+
+  function renderEditorFeet() {
+    if (!editorWorkingPos) return;
+    const l = editorWorkingPos.left, r = editorWorkingPos.right;
+    editorFootL.style.transform = footTransformFor(l, editorMinDim);
+    editorFootR.style.transform = footTransformFor(r, editorMinDim);
+    editorCoordsEl.textContent =
+      `L (${l.cx.toFixed(2)}, ${l.cy.toFixed(2)}) ${l.rotation.toFixed(0)}\u00b0\u2003` +
+      `R (${r.cx.toFixed(2)}, ${r.cy.toFixed(2)}) ${r.rotation.toFixed(0)}\u00b0`;
+  }
+
+  function populateEditorSelect() {
+    editorSelect.innerHTML = '';
+    reactionPositions().forEach(pos => {
+      const opt = document.createElement('option');
+      opt.value = pos.name;
+      opt.textContent = pos.label || pos.name;
+      editorSelect.appendChild(opt);
+    });
+    if (editorCurrentName) editorSelect.value = editorCurrentName;
+  }
+
+  function applyEditorChanges() {
+    if (!editorCurrentName || !editorWorkingPos) return;
+    const pos = POS[editorCurrentName];
+    if (!pos) return;
+    pos.left  = { ...editorWorkingPos.left };
+    pos.right = { ...editorWorkingPos.right };
+    saveCustomPositions();
+  }
+
+  function openEditor(posName) {
+    if (state.top === 'running') stopDrill();
+    const pos = POS[posName];
+    if (!pos) return;
+    editorCurrentName = posName;
+    editorWorkingPos  = { left: { ...pos.left }, right: { ...pos.right } };
+    editorNameInput.value = pos.label || pos.name;
+    populateEditorSelect();
+    editorSelect.value = posName;
+    editorOverlay.hidden = false;
+    const rect = editorStageEl.getBoundingClientRect();
+    editorMinDim = Math.min(rect.width, rect.height);
+    renderEditorGhosts();
+    renderEditorFeet();
+  }
+
+  function closeEditor() {
+    editorOverlay.hidden = true;
+    buildMovementList();
+  }
+
+  // Drag: toe (top 1/3 of SVG, y < 470/3) → rotate; heel (bottom 1/3, y > 470*2/3) → translate.
+  // Middle third is a dead zone. Zone is computed in SVG local coordinates via the CTM,
+  // so it stays correct regardless of how the foot is rotated on screen.
+  const SVG_H = 470;
+  const TOE_LIMIT  = SVG_H / 3;        // y < this → toe → rotate
+  const HEEL_START = SVG_H * 2 / 3;    // y > this → heel → translate
+
+  function svgLocalY(footEl, clientX, clientY) {
+    const ctm = footEl.getScreenCTM();
+    if (!ctm) return null;
+    return new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse()).y;
+  }
+
+  function zoneFor(footEl, clientX, clientY) {
+    const y = svgLocalY(footEl, clientX, clientY);
+    if (y === null) return null;
+    if (y < TOE_LIMIT)  return 'toe';
+    if (y > HEEL_START) return 'heel';
+    return 'mid';
+  }
+
+  function updateFootCursor(footEl, clientX, clientY) {
+    const zone = zoneFor(footEl, clientX, clientY);
+    footEl.classList.remove('zone-toe', 'zone-heel', 'zone-mid');
+    if (zone) footEl.classList.add('zone-' + zone);
+  }
+
+  function editorPointerDown(e, side) {
+    const footEl = side === 'left' ? editorFootL : editorFootR;
+    const zone   = zoneFor(footEl, e.clientX, e.clientY);
+    if (!zone || zone === 'mid') return; // dead zone — ignore
+    e.preventDefault();
+
+    const fp     = editorWorkingPos[side];
+    const sRect  = editorStageEl.getBoundingClientRect();
+    const footCx = sRect.left + sRect.width  / 2 + fp.cx * editorMinDim / 2;
+    const footCy = sRect.top  + sRect.height / 2 - fp.cy * editorMinDim / 2;
+    const dx = e.clientX - footCx, dy = e.clientY - footCy;
+    editorDrag = {
+      side,
+      mode:          zone === 'heel' ? 'translate' : 'rotate',
+      lastX:         e.clientX,
+      lastY:         e.clientY,
+      footCx,        footCy,
+      startAngle:    Math.atan2(dy, dx),
+      startRotation: fp.rotation,
+    };
+    footEl.setPointerCapture(e.pointerId);
+  }
+
+  function editorPointerMove(e) {
+    const footEl = e.target;
+    if (!editorDrag) {
+      // No active drag — update cursor zone class for hover feedback (desktop)
+      updateFootCursor(footEl, e.clientX, e.clientY);
+      return;
+    }
+    e.preventDefault();
+    const fp = editorWorkingPos[editorDrag.side];
+    if (editorDrag.mode === 'translate') {
+      fp.cx += (e.clientX - editorDrag.lastX) / (editorMinDim / 2);
+      fp.cy -= (e.clientY - editorDrag.lastY) / (editorMinDim / 2);
+      editorDrag.lastX = e.clientX;
+      editorDrag.lastY = e.clientY;
+    } else {
+      const dx = e.clientX - editorDrag.footCx;
+      const dy = e.clientY - editorDrag.footCy;
+      const delta = (Math.atan2(dy, dx) - editorDrag.startAngle) * (180 / Math.PI);
+      fp.rotation = editorDrag.startRotation + delta;
+    }
+    renderEditorFeet();
+  }
+
+  function editorPointerUp() {
+    if (!editorDrag) return;
+    editorDrag = null;
+    applyEditorChanges();
+  }
+
+  [editorFootL, editorFootR].forEach(el => {
+    const side = el === editorFootL ? 'left' : 'right';
+    el.addEventListener('pointerdown',   e => editorPointerDown(e, side));
+    el.addEventListener('pointermove',   editorPointerMove);
+    el.addEventListener('pointerup',     editorPointerUp);
+    el.addEventListener('pointercancel', editorPointerUp);
+  });
+
+  editorSelect.addEventListener('change', () => {
+    applyEditorChanges();
+    openEditor(editorSelect.value);
+  });
+
+  btnEditorNew.addEventListener('click', () => {
+    const raw = window.prompt('New movement name:');
+    if (!raw || !raw.trim()) return;
+    const label    = raw.trim();
+    const safeName = label.replace(/\s+(.)/g, (_, c) => c.toUpperCase()).replace(/\s/g, '');
+    if (POS[safeName]) { alert(`"${safeName}" already exists.`); return; }
+    const newPos = {
+      name: safeName, label,
+      left:  { ...POS.neutral.left },
+      right: { ...POS.neutral.right },
+    };
+    positions.push(newPos);
+    rebuildPOS();
+    saveCustomPositions();
+    buildMovementList();
+    openEditor(safeName);
+  });
+
+  btnEditorRename.addEventListener('click', () => {
+    const newLabel = editorNameInput.value.trim();
+    if (!newLabel || !editorCurrentName) return;
+    const pos = POS[editorCurrentName];
+    if (pos) {
+      pos.label = newLabel;
+      saveCustomPositions();
+      buildMovementList();
+      populateEditorSelect();
+    }
+  });
+
+  btnEditorDelete.addEventListener('click', () => {
+    if (!editorCurrentName) return;
+    const pos = POS[editorCurrentName];
+    if (!pos) return;
+    if (!window.confirm(`Delete "${pos.label || pos.name}"?`)) return;
+    positions = positions.filter(p => p.name !== editorCurrentName);
+    rebuildPOS();
+    saveCustomPositions();
+    buildMovementList();
+    const remaining = reactionPositions();
+    if (remaining.length > 0) {
+      openEditor(remaining[0].name);
+    } else {
+      editorCurrentName = null;
+      editorWorkingPos  = null;
+      populateEditorSelect();
+    }
+  });
+
+  btnEditorClose.addEventListener('click', closeEditor);
+
+  btnEditMovements.addEventListener('click', () => {
+    const rxPos = reactionPositions();
+    if (rxPos.length > 0) {
+      openEditor(rxPos[0].name);
+    } else {
+      if (state.top === 'running') stopDrill();
+      editorOverlay.hidden = false;
+      populateEditorSelect();
+    }
+  });
+
+  new ResizeObserver(([entry]) => {
+    const { width, height } = entry.contentRect;
+    editorMinDim = Math.min(width, height);
+    if (!editorOverlay.hidden) { renderEditorGhosts(); renderEditorFeet(); }
+  }).observe(editorStageEl);
+
+  // ── 14. Download link ─────────────────────────────────────────────────────────
+
+  function generatePositionsJs() {
+    const lines = [
+      '// Foot positions for the Split-Step Trainer.',
+      '//',
+      '// Coords (cx, cy) are relative to the circle center; 1 unit = 0.5 * min(stageW, stageH).',
+      '// Positive cx = right, positive cy = upward on screen.',
+      '// Rotation is in degrees; positive = clockwise.',
+      '//',
+      '// To convert to pixels: px = coord * minDim / 2',
+      '',
+      'const POSITIONS = [',
+    ];
+    positions.forEach((pos, i) => {
+      const comma = i < positions.length - 1 ? ',' : '';
+      lines.push(
+        '  {',
+        `    name:  '${pos.name}',`,
+        ...(pos.label ? [`    label: '${pos.label}',`] : []),
+        `    left:  { cx: ${pos.left.cx.toFixed(3)}, cy: ${pos.left.cy.toFixed(3)}, rotation: ${pos.left.rotation.toFixed(1)} },`,
+        `    right: { cx: ${pos.right.cx.toFixed(3)}, cy: ${pos.right.cy.toFixed(3)}, rotation: ${pos.right.rotation.toFixed(1)} },`,
+        `  }${comma}`,
+      );
+    });
+    lines.push('];');
+    return lines.join('\n');
+  }
+
+  function updateDownloadLink() {
+    const content = generatePositionsJs();
+    const blob = new Blob([content], { type: 'text/javascript' });
+    const url  = URL.createObjectURL(blob);
+    if (editorDlLink._blobUrl) URL.revokeObjectURL(editorDlLink._blobUrl);
+    editorDlLink._blobUrl = url;
+    editorDlLink.href = url;
+  }
+
+  // ── 15. Init ─────────────────────────────────────────────────────────────────
+
+  loadCustomPositions();
   loadSettings();
+  buildMovementList();
   hideCircle();
-  updateStart();
+  updateDownloadLink();
 
   // Keep --circle-d and circleSize = 90% of the stage's smaller dimension
   const stageEl = document.getElementById('stage');

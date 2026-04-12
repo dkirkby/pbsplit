@@ -18,32 +18,27 @@ const POSITIONS = [
     right: { cx:  0.90, cy: 0.0, rotation:   8 },
   },
   {
-    // A — Volley: both feet forward, slightly outward
-    name:  'volley',
+    name:  'volley', label: 'Volley',
     left:  { cx: -0.46, cy: -0.11, rotation:  -8 },
     right: { cx:  0.46, cy: -0.11, rotation:   8 },
   },
   {
-    // B — Deep Drive Right
-    name:  'deepDriveRight',
+    name:  'deepDriveRight', label: 'Deep Drive Right',
     left:  { cx: -0.34, cy: -0.34, rotation:   0 },
     right: { cx:  0.71, cy: -0.09, rotation:  18 },
   },
   {
-    // C — Deep Drive Left
-    name:  'deepDriveLeft',
+    name:  'deepDriveLeft', label: 'Deep Drive Left',
     left:  { cx: -0.71, cy: -0.09, rotation: -18 },
     right: { cx:  0.34, cy: -0.34, rotation:   0 },
   },
   {
-    // D — Unit Turn Left
-    name:  'unitTurnLeft',
+    name:  'unitTurnLeft', label: 'Unit Turn Left',
     left:  { cx: -0.51, cy: -0.46, rotation: -55 },
     right: { cx:  0.28, cy: -0.46, rotation: -35 },
   },
   {
-    // E — Unit Turn Right
-    name:  'unitTurnRight',
+    name:  'unitTurnRight', label: 'Unit Turn Right',
     left:  { cx: -0.28, cy: -0.46, rotation:  35 },
     right: { cx:  0.51, cy: -0.46, rotation:  55 },
   },
