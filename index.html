@@ -574,12 +574,27 @@
   };
 
   function loadCustomPositions() {
+    // positions.js is always authoritative for which built-in positions exist.
+    // localStorage stores edited values for built-ins and any user-created additions.
+    // Positions removed from positions.js disappear on reload even if still in localStorage.
+    const base = POSITIONS.map(p => ({ ...p, left: { ...p.left }, right: { ...p.right } }));
+    const builtInNames = new Set(base.map(p => p.name));
     const saved = localStorage.getItem(LS_KEYS.positions);
     if (saved) {
-      try { positions = JSON.parse(saved); } catch (_) { positions = null; }
-    }
-    if (!positions || !positions.length) {
-      positions = POSITIONS.map(p => ({ ...p, left: { ...p.left }, right: { ...p.right } }));
+      try {
+        const stored = JSON.parse(saved);
+        const storedMap = Object.fromEntries(stored.map(p => [p.name, p]));
+        // Apply any stored edits to built-ins
+        positions = base.map(p => storedMap[p.name]
+          ? { ...p, left: { ...storedMap[p.name].left }, right: { ...storedMap[p.name].right } }
+          : p);
+        // Append user-created positions (names not in positions.js)
+        stored.forEach(p => { if (!builtInNames.has(p.name)) positions.push({ ...p }); });
+      } catch (_) {
+        positions = base;
+      }
+    } else {
+      positions = base;
     }
     rebuildPOS();
   }
