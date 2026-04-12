@@ -1,16 +1,16 @@
 // Foot positions for the Split-Step Trainer.
 //
-// Coords (cx, cy) are relative to the circle center; 1 unit = circle radius.
-// Positive x = right, positive cy = upward on screen.
+// Coords (cx, cy) are relative to the circle center; 1 unit = 0.5 * min(stageW, stageH).
+// Positive cx = right, positive cy = upward on screen.
 // Rotation is in degrees; positive = clockwise.
 //
-// To convert to pixels: px = coord * (circleSize / 2)
+// To convert to pixels: px = coord * minDim / 2
 
 const POSITIONS = [
   {
     name:  'neutral',
-    left:  { cx: -0.60, cy: 0, rotation:  -8 },
-    right: { cx:  0.60, cy: 0, rotation:   8 },
+    left:  { cx: -0.5, cy: 0, rotation:  -8 },
+    right: { cx:  0.5, cy: 0, rotation:   8 },
   },
   {
     name:  'split',
