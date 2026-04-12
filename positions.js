@@ -23,7 +23,7 @@ const POSITIONS = [
     right: { cx:  0.90, cy: 0.0, rotation:   8 },
   },
   {
-    name:  'Volley',
+    name:  'Volley', mirrored: true,
     left:  { cx: -0.46, cy: -0.11, rotation:  -8 },
     right: { cx:  0.46, cy: -0.11, rotation:   8 },
   },

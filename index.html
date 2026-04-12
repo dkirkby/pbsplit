@@ -486,6 +486,12 @@
       <button id="btn-editor-rename">Rename</button>
       <button id="btn-editor-delete">Delete</button>
     </div>
+    <div class="editor-row">
+      <label style="display:flex;align-items:center;gap:8px;min-height:36px;font-size:0.9rem;cursor:pointer;">
+        <input type="checkbox" id="editor-mirror-cb" style="width:17px;height:17px;accent-color:var(--accent);cursor:pointer;">
+        Mirror Feet
+      </label>
+    </div>
   </div>
 
   <div id="editor-stage">
@@ -724,8 +730,13 @@
   }
 
   function moveToReaction(pos, footSpeed) {
-    moveFoot(footLeft,  'left',  pos.left,  footSpeed);
-    moveFoot(footRight, 'right', pos.right, footSpeed);
+    let l = pos.left, r = pos.right;
+    if (!pos.mirrored && Math.random() < 0.5) {
+      l = { cx: -pos.left.cx,  cy: pos.left.cy,  rotation: -pos.left.rotation  };
+      r = { cx: -pos.right.cx, cy: pos.right.cy, rotation: -pos.right.rotation };
+    }
+    moveFoot(footLeft,  'left',  l, footSpeed);
+    moveFoot(footRight, 'right', r, footSpeed);
   }
 
   // Seconds for the slower foot to travel neutral → split at the given speed.
@@ -886,6 +897,7 @@
   const editorFootL      = document.getElementById('editor-foot-left');
   const editorFootR      = document.getElementById('editor-foot-right');
   const editorCoordsEl   = document.getElementById('editor-coords');
+  const editorMirrorCb   = document.getElementById('editor-mirror-cb');
   const btnEditorNew     = document.getElementById('btn-editor-new');
   const btnEditorRename  = document.getElementById('btn-editor-rename');
   const btnEditorDelete  = document.getElementById('btn-editor-delete');
@@ -924,8 +936,9 @@
     if (!editorCurrentName || !editorWorkingPos) return;
     const pos = POS[editorCurrentName];
     if (!pos) return;
-    pos.left  = { ...editorWorkingPos.left };
-    pos.right = { ...editorWorkingPos.right };
+    pos.left     = { ...editorWorkingPos.left };
+    pos.right    = { ...editorWorkingPos.right };
+    pos.mirrored = editorMirrorCb.checked;
     saveCustomPositions();
   }
 
@@ -933,9 +946,10 @@
     if (state.top === 'running') stopDrill();
     const pos = POS[posName];
     if (!pos) return;
-    editorCurrentName = posName;
-    editorWorkingPos  = { left: { ...pos.left }, right: { ...pos.right } };
-    editorNameInput.value = pos.name;
+    editorCurrentName    = posName;
+    editorWorkingPos     = { left: { ...pos.left }, right: { ...pos.right } };
+    editorMirrorCb.checked = !!pos.mirrored;
+    editorNameInput.value  = pos.name;
     populateEditorSelect();
     editorSelect.value = posName;
     editorOverlay.hidden = false;
@@ -1020,6 +1034,12 @@
       const delta = (Math.atan2(dy, dx) - editorDrag.startAngle) * (180 / Math.PI);
       fp.rotation = editorDrag.startRotation + delta;
     }
+    if (editorMirrorCb.checked) {
+      const other = editorWorkingPos[editorDrag.side === 'left' ? 'right' : 'left'];
+      other.cx       = -fp.cx;
+      other.cy       =  fp.cy;
+      other.rotation = -fp.rotation;
+    }
     renderEditorFeet();
   }
 
@@ -1035,6 +1055,16 @@
     el.addEventListener('pointermove',   editorPointerMove);
     el.addEventListener('pointerup',     editorPointerUp);
     el.addEventListener('pointercancel', editorPointerUp);
+  });
+
+  editorMirrorCb.addEventListener('change', () => {
+    if (editorMirrorCb.checked && editorWorkingPos) {
+      // Snap right foot to mirror of left foot immediately
+      const l = editorWorkingPos.left;
+      editorWorkingPos.right = { cx: -l.cx, cy: l.cy, rotation: -l.rotation };
+      renderEditorFeet();
+    }
+    applyEditorChanges();
   });
 
   editorSelect.addEventListener('change', () => {
@@ -1137,9 +1167,11 @@
     ];
     positions.forEach((pos, i) => {
       const comma = i < positions.length - 1 ? ',' : '';
+      const isReaction = pos.name !== 'neutral' && pos.name !== 'split';
       lines.push(
         '  {',
         `    name:  '${pos.name}',`,
+        ...(isReaction ? [`    mirrored: ${!!pos.mirrored},`] : []),
         `    left:  { cx: ${pos.left.cx.toFixed(3)}, cy: ${pos.left.cy.toFixed(3)}, rotation: ${pos.left.rotation.toFixed(1)} },`,
         `    right: { cx: ${pos.right.cx.toFixed(3)}, cy: ${pos.right.cy.toFixed(3)}, rotation: ${pos.right.rotation.toFixed(1)} },`,
         `  }${comma}`,
