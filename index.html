@@ -362,8 +362,8 @@
         <input type="number" id="input-shrink" value="2.0" min="0.2" max="10" step="0.1">
       </div>
       <div class="field">
-        <label for="input-presplit">Pre-Split Buffer (s)</label>
-        <input type="number" id="input-presplit" value="0.15" min="0" max="10" step="0.05">
+        <label for="input-foot-speed">Foot Speed (r/s)</label>
+        <input type="number" id="input-foot-speed" value="2.5" min="0.1" max="20" step="0.1">
       </div>
     </div>
 
@@ -397,43 +397,23 @@
   </div>
 </div>
 
+<script src="positions.js"></script>
 <script>
   // ── 1. Constants ────────────────────────────────────────────────────────────
 
   const REACTION_DELAY_S = 0.10;
   const RESET_DELAY_S    = 1.50;
-  const SPLIT_MS         = 120;
-  const RESET_MS         = 400;
 
-  // Neutral stance: foot center positions (px from stage center) and rotation (deg)
-  const NEUTRAL = {
-    left:  { x: -70, y: 80, r: -8 },
-    right: { x:  70, y: 80, r:  8 },
-  };
+  // Position lookup map, keyed by name, built from positions.js
+  const POS = Object.fromEntries(POSITIONS.map(p => [p.name, p]));
 
-  // Wide split-step stance (§10.3)
-  const SPLIT = {
-    left:  { x: -105, y: 88, r: -8 },
-    right: { x:  105, y: 88, r:  8 },
-  };
-
-  // Reaction movements: absolute foot positions from neutral (§10.4)
+  // Reaction movements: name reference into POS (timing driven by footSpeed)
   const MOVEMENTS = {
-    A: { label: 'Volley',
-         left:  { x:  -80, y:  20, r:  -8 },
-         right: { x:   80, y:  20, r:   8 }, ms: 220 },
-    B: { label: 'Deep Drive Right',
-         left:  { x:  -60, y:  60, r:   0 },
-         right: { x:  125, y:  15, r:  18 }, ms: 240 },
-    C: { label: 'Deep Drive Left',
-         left:  { x: -125, y:  15, r: -18 },
-         right: { x:   60, y:  60, r:   0 }, ms: 240 },
-    D: { label: 'Unit Turn Left',
-         left:  { x:  -90, y:  80, r: -55 },
-         right: { x:   50, y:  80, r: -35 }, ms: 220 },
-    E: { label: 'Unit Turn Right',
-         left:  { x:  -50, y:  80, r:  35 },
-         right: { x:   90, y:  80, r:  55 }, ms: 220 },
+    A: { label: 'Volley',           pos: 'volley'         },
+    B: { label: 'Deep Drive Right', pos: 'deepDriveRight' },
+    C: { label: 'Deep Drive Left',  pos: 'deepDriveLeft'  },
+    D: { label: 'Unit Turn Left',   pos: 'unitTurnLeft'   },
+    E: { label: 'Unit Turn Right',  pos: 'unitTurnRight'  },
   };
 
   // ── 2. State ─────────────────────────────────────────────────────────────────
@@ -441,10 +421,13 @@
   let circleSize = 0;
 
   const state = {
-    top:      'setup',  // setup | ready | running | stopped
-    phase:    null,     // idleWait | anticipation | preSplit | impact | reaction | reset
-    timers:   [],
-    wakeLock: null,
+    top:       'setup',  // setup | ready | running | stopped
+    phase:     null,     // idleWait | anticipation | preSplit | impact | reaction | reset
+    timers:    [],
+    wakeLock:  null,
+    footSpeed: 2.5,      // last-used foot speed (normalized units/sec); used by stopDrill
+    leftPos:   null,     // current target position of left foot (normalized)
+    rightPos:  null,     // current target position of right foot (normalized)
   };
 
   // ── 3. DOM refs ──────────────────────────────────────────────────────────────
@@ -459,10 +442,10 @@
   const footLeft      = document.getElementById('foot-left');
   const footRight     = document.getElementById('foot-right');
   const checkboxes    = document.querySelectorAll('input[name="movement"]');
-  const inputMinWait  = document.getElementById('input-min-wait');
-  const inputMaxWait  = document.getElementById('input-max-wait');
-  const inputShrink   = document.getElementById('input-shrink');
-  const inputPresplit = document.getElementById('input-presplit');
+  const inputMinWait   = document.getElementById('input-min-wait');
+  const inputMaxWait   = document.getElementById('input-max-wait');
+  const inputShrink    = document.getElementById('input-shrink');
+  const inputFootSpeed = document.getElementById('input-foot-speed');
 
   // ── 4. Settings persistence ──────────────────────────────────────────────────
 
@@ -470,16 +453,16 @@
     minWait:   'ss_minWait',
     maxWait:   'ss_maxWait',
     shrink:    'ss_shrink',
-    presplit:  'ss_presplit',
+    footSpeed: 'ss_footSpeed',
     movements: 'ss_movements',
   };
 
   function loadSettings() {
     const get = (k, d) => { const v = localStorage.getItem(k); return v !== null ? v : d; };
-    inputMinWait.value  = get(LS_KEYS.minWait,   '5');
-    inputMaxWait.value  = get(LS_KEYS.maxWait,  '10');
-    inputShrink.value   = get(LS_KEYS.shrink,    '2');
-    inputPresplit.value = get(LS_KEYS.presplit, '0.15');
+    inputMinWait.value   = get(LS_KEYS.minWait,    '5');
+    inputMaxWait.value   = get(LS_KEYS.maxWait,   '10');
+    inputShrink.value    = get(LS_KEYS.shrink,     '2');
+    inputFootSpeed.value = get(LS_KEYS.footSpeed, '2.5');
     const saved = get(LS_KEYS.movements, '');
     if (saved) {
       const enabled = new Set(saved.split(','));
@@ -491,7 +474,7 @@
     localStorage.setItem(LS_KEYS.minWait,   inputMinWait.value);
     localStorage.setItem(LS_KEYS.maxWait,   inputMaxWait.value);
     localStorage.setItem(LS_KEYS.shrink,    inputShrink.value);
-    localStorage.setItem(LS_KEYS.presplit,  inputPresplit.value);
+    localStorage.setItem(LS_KEYS.footSpeed, inputFootSpeed.value);
     const enabled = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
     localStorage.setItem(LS_KEYS.movements, enabled.join(','));
   }
@@ -499,17 +482,16 @@
   // ── 5. Settings read + auto-correct ──────────────────────────────────────────
 
   function readSettings() {
-    let minWait  = Math.max(0.5, Math.min(60,  parseFloat(inputMinWait.value)  || 5));
-    let maxWait  = Math.max(0.5, Math.min(60,  parseFloat(inputMaxWait.value)  || 10));
-    let shrink   = Math.max(0.2, Math.min(10,  parseFloat(inputShrink.value)   || 2));
-    let presplit = Math.max(0,                 parseFloat(inputPresplit.value)  || 0.15);
+    let minWait   = Math.max(0.5, Math.min(60, parseFloat(inputMinWait.value)   || 5));
+    let maxWait   = Math.max(0.5, Math.min(60, parseFloat(inputMaxWait.value)   || 10));
+    let shrink    = Math.max(0.2, Math.min(10, parseFloat(inputShrink.value)    || 2));
+    let footSpeed = Math.max(0.1, Math.min(20, parseFloat(inputFootSpeed.value) || 2.5));
     if (maxWait < minWait) maxWait = minWait;
-    presplit = Math.min(presplit, shrink);
-    inputMinWait.value  = minWait;
-    inputMaxWait.value  = maxWait;
-    inputShrink.value   = shrink;
-    inputPresplit.value = presplit;
-    return { minWait, maxWait, shrink, presplit };
+    inputMinWait.value   = minWait;
+    inputMaxWait.value   = maxWait;
+    inputShrink.value    = shrink;
+    inputFootSpeed.value = footSpeed;
+    return { minWait, maxWait, shrink, footSpeed };
   }
 
   // ── 6. Helpers ───────────────────────────────────────────────────────────────
@@ -537,28 +519,59 @@
 
   // ── 7. Rendering helpers ─────────────────────────────────────────────────────
 
-  function footTransform(pos) {
-    return `translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y}px)) rotate(${pos.r}deg)`;
+  // Convert a normalized foot position to a CSS transform string.
+  // cx/cy in units of circle radius; positive cy = up (negated for CSS screen coords).
+  function footTransform(fp) {
+    const r = circleSize / 2;
+    return `translate(calc(-50% + ${fp.cx * r}px), calc(-50% + ${-fp.cy * r}px)) rotate(${fp.rotation}deg)`;
   }
 
-  function setFoot(el, pos, ms) {
+  function dist2D(a, b) {
+    const dx = b.cx - a.cx, dy = b.cy - a.cy;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  // Move one foot from its tracked position to toPos at footSpeed (normalized units/sec).
+  function moveFoot(el, side, toPos, footSpeed) {
+    const fromPos = state[side + 'Pos'];
+    const ms = fromPos ? (dist2D(fromPos, toPos) / footSpeed) * 1000 : 0;
     el.style.transition = ms > 0 ? `transform ${ms}ms ease` : 'none';
-    el.style.transform  = footTransform(pos);
+    el.style.transform  = footTransform(toPos);
+    state[side + 'Pos'] = toPos;
   }
 
-  function setNeutral(ms) {
-    setFoot(footLeft,  NEUTRAL.left,  ms);
-    setFoot(footRight, NEUTRAL.right, ms);
+  // Instantly place feet with no animation (init and drill start).
+  function snapNeutral() {
+    state.leftPos  = POS.neutral.left;
+    state.rightPos = POS.neutral.right;
+    footLeft.style.transition  = 'none';
+    footRight.style.transition = 'none';
+    footLeft.style.transform   = footTransform(POS.neutral.left);
+    footRight.style.transform  = footTransform(POS.neutral.right);
   }
 
-  function setSplit() {
-    setFoot(footLeft,  SPLIT.left,  SPLIT_MS);
-    setFoot(footRight, SPLIT.right, SPLIT_MS);
+  function moveToNeutral(footSpeed) {
+    moveFoot(footLeft,  'left',  POS.neutral.left,  footSpeed);
+    moveFoot(footRight, 'right', POS.neutral.right, footSpeed);
   }
 
-  function setReaction(movement) {
-    setFoot(footLeft,  movement.left,  movement.ms);
-    setFoot(footRight, movement.right, movement.ms);
+  function moveToSplit(footSpeed) {
+    moveFoot(footLeft,  'left',  POS.split.left,  footSpeed);
+    moveFoot(footRight, 'right', POS.split.right, footSpeed);
+  }
+
+  function moveToReaction(movement, footSpeed) {
+    const pos = POS[movement.pos];
+    moveFoot(footLeft,  'left',  pos.left,  footSpeed);
+    moveFoot(footRight, 'right', pos.right, footSpeed);
+  }
+
+  // Seconds for the slower foot to travel neutral → split at the given speed.
+  function splitDuration(footSpeed) {
+    return Math.max(
+      dist2D(POS.neutral.left,  POS.split.left),
+      dist2D(POS.neutral.right, POS.split.right)
+    ) / footSpeed;
   }
 
   function showCircle(shrinkS) {
@@ -606,8 +619,9 @@
 
     const waitS    = randBetween(settings.minWait, settings.maxWait);
     const shrinkS  = settings.shrink;
-    const presplit = settings.presplit;
+    const speed    = settings.footSpeed;
     const movement = pickMovement();
+    const splitDur = splitDuration(speed); // how early to start the split-step
 
     state.phase = 'idleWait';
     statusText.textContent = 'Waiting…';
@@ -619,11 +633,12 @@
       showCircle(shrinkS);
     }, waitS);
 
+    // Fire split-step early enough that the slower foot arrives exactly at impact
     schedule(() => {
       if (state.top !== 'running') return;
       state.phase = 'preSplit';
-      setSplit();
-    }, waitS + shrinkS - presplit);
+      moveToSplit(speed);
+    }, waitS + shrinkS - splitDur);
 
     schedule(() => {
       if (state.top !== 'running') return;
@@ -635,14 +650,14 @@
     schedule(() => {
       if (state.top !== 'running') return;
       state.phase = 'reaction';
-      setReaction(movement);
+      moveToReaction(movement, speed);
     }, waitS + shrinkS + REACTION_DELAY_S);
 
     schedule(() => {
       if (state.top !== 'running') return;
       state.phase = 'reset';
-      setNeutral(RESET_MS);
-      runRep(settings); // begin next rep immediately (idleWait >> RESET_MS)
+      moveToNeutral(speed);
+      runRep(settings);
     }, waitS + shrinkS + RESET_DELAY_S);
   }
 
@@ -652,9 +667,10 @@
     if (state.top === 'running') return;
     const settings = readSettings();
     saveSettings();
-    state.top = 'running';
+    state.top       = 'running';
+    state.footSpeed = settings.footSpeed;
     btnStart.disabled = true;
-    setNeutral(0);
+    snapNeutral();
     hideCircle();
     requestWakeLock();
     runRep(settings);
@@ -664,7 +680,7 @@
     state.top   = 'stopped';
     state.phase = null;
     clearAllTimers();
-    setNeutral(RESET_MS);
+    moveToNeutral(state.footSpeed);
     hideCircle();
     releaseWakeLock();
     statusText.textContent = '';
@@ -695,14 +711,13 @@
     saveSettings();
   }));
 
-  [inputMinWait, inputMaxWait, inputShrink, inputPresplit].forEach(el =>
+  [inputMinWait, inputMaxWait, inputShrink, inputFootSpeed].forEach(el =>
     el.addEventListener('change', saveSettings)
   );
 
   // ── 13. Init ─────────────────────────────────────────────────────────────────
 
   loadSettings();
-  setNeutral(0);
   hideCircle();
   updateStart();
 
@@ -712,6 +727,7 @@
     const { width, height } = entry.contentRect;
     circleSize = Math.min(width, height) * 0.9;
     document.documentElement.style.setProperty('--circle-d', `${circleSize}px`);
+    if (state.top !== 'running') snapNeutral();
   }).observe(stageEl);
 </script>
 

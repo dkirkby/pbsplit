@@ -1,0 +1,50 @@
+// Foot positions for the Split-Step Trainer.
+//
+// Coords (cx, cy) are relative to the circle center; 1 unit = circle radius.
+// Positive x = right, positive cy = upward on screen.
+// Rotation is in degrees; positive = clockwise.
+//
+// To convert to pixels: px = coord * (circleSize / 2)
+
+const POSITIONS = [
+  {
+    name:  'neutral',
+    left:  { cx: -0.60, cy: 0, rotation:  -8 },
+    right: { cx:  0.60, cy: 0, rotation:   8 },
+  },
+  {
+    name:  'split',
+    left:  { cx: -0.90, cy: 0.0, rotation:  -8 },
+    right: { cx:  0.90, cy: 0.0, rotation:   8 },
+  },
+  {
+    // A — Volley: both feet forward, slightly outward
+    name:  'volley',
+    left:  { cx: -0.46, cy: -0.11, rotation:  -8 },
+    right: { cx:  0.46, cy: -0.11, rotation:   8 },
+  },
+  {
+    // B — Deep Drive Right
+    name:  'deepDriveRight',
+    left:  { cx: -0.34, cy: -0.34, rotation:   0 },
+    right: { cx:  0.71, cy: -0.09, rotation:  18 },
+  },
+  {
+    // C — Deep Drive Left
+    name:  'deepDriveLeft',
+    left:  { cx: -0.71, cy: -0.09, rotation: -18 },
+    right: { cx:  0.34, cy: -0.34, rotation:   0 },
+  },
+  {
+    // D — Unit Turn Left
+    name:  'unitTurnLeft',
+    left:  { cx: -0.51, cy: -0.46, rotation: -55 },
+    right: { cx:  0.28, cy: -0.46, rotation: -35 },
+  },
+  {
+    // E — Unit Turn Right
+    name:  'unitTurnRight',
+    left:  { cx: -0.28, cy: -0.46, rotation:  35 },
+    right: { cx:  0.51, cy: -0.46, rotation:  55 },
+  },
+];
