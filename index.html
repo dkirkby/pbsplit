@@ -626,7 +626,7 @@
       cb.checked = hasAnySaved ? savedNames.has(pos.name) : true;
       cb.addEventListener('change', () => { updateStart(); saveSettings(); });
       lbl.appendChild(cb);
-      lbl.appendChild(document.createTextNode('\u00a0' + (pos.label || pos.name)));
+      lbl.appendChild(document.createTextNode('\u00a0' + (pos.name)));
       container.appendChild(lbl);
     });
 
@@ -907,7 +907,7 @@
     reactionPositions().forEach(pos => {
       const opt = document.createElement('option');
       opt.value = pos.name;
-      opt.textContent = pos.label || pos.name;
+      opt.textContent = pos.name;
       editorSelect.appendChild(opt);
     });
     if (editorCurrentName) editorSelect.value = editorCurrentName;
@@ -928,7 +928,7 @@
     if (!pos) return;
     editorCurrentName = posName;
     editorWorkingPos  = { left: { ...pos.left }, right: { ...pos.right } };
-    editorNameInput.value = pos.label || pos.name;
+    editorNameInput.value = pos.name;
     populateEditorSelect();
     editorSelect.value = posName;
     editorOverlay.hidden = false;
@@ -1038,11 +1038,11 @@
   btnEditorNew.addEventListener('click', () => {
     const raw = window.prompt('New movement name:');
     if (!raw || !raw.trim()) return;
-    const label    = raw.trim();
-    const safeName = label.replace(/\s+(.)/g, (_, c) => c.toUpperCase()).replace(/\s/g, '');
-    if (POS[safeName]) { alert(`"${safeName}" already exists.`); return; }
+    const name = raw.trim().replace(/,/g, ''); // commas would break ss_movements storage
+    if (!name) return;
+    if (POS[name]) { alert(`"${name}" already exists.`); return; }
     const newPos = {
-      name: safeName, label,
+      name,
       left:  { ...POS.neutral.left },
       right: { ...POS.neutral.right },
     };
@@ -1050,26 +1050,32 @@
     rebuildPOS();
     saveCustomPositions();
     buildMovementList();
-    openEditor(safeName);
+    openEditor(name);
   });
 
   btnEditorRename.addEventListener('click', () => {
-    const newLabel = editorNameInput.value.trim();
-    if (!newLabel || !editorCurrentName) return;
+    const newName = editorNameInput.value.trim().replace(/,/g, '');
+    if (!newName || !editorCurrentName || newName === editorCurrentName) return;
+    if (POS[newName]) { alert(`"${newName}" already exists.`); return; }
     const pos = POS[editorCurrentName];
-    if (pos) {
-      pos.label = newLabel;
-      saveCustomPositions();
-      buildMovementList();
-      populateEditorSelect();
-    }
+    if (!pos) return;
+    // Update the enabled-movements list in storage before rebuilding
+    const saved = localStorage.getItem(LS_KEYS.movements) || '';
+    const updated = saved.split(',').map(n => n === editorCurrentName ? newName : n).join(',');
+    localStorage.setItem(LS_KEYS.movements, updated);
+    pos.name = newName;
+    editorCurrentName = newName;
+    rebuildPOS();
+    saveCustomPositions();
+    buildMovementList();
+    populateEditorSelect();
   });
 
   btnEditorDelete.addEventListener('click', () => {
     if (!editorCurrentName) return;
     const pos = POS[editorCurrentName];
     if (!pos) return;
-    if (!window.confirm(`Delete "${pos.label || pos.name}"?`)) return;
+    if (!window.confirm(`Delete "${pos.name}"?`)) return;
     positions = positions.filter(p => p.name !== editorCurrentName);
     rebuildPOS();
     saveCustomPositions();
@@ -1122,7 +1128,6 @@
       lines.push(
         '  {',
         `    name:  '${pos.name}',`,
-        ...(pos.label ? [`    label: '${pos.label}',`] : []),
         `    left:  { cx: ${pos.left.cx.toFixed(3)}, cy: ${pos.left.cy.toFixed(3)}, rotation: ${pos.left.rotation.toFixed(1)} },`,
         `    right: { cx: ${pos.right.cx.toFixed(3)}, cy: ${pos.right.cy.toFixed(3)}, rotation: ${pos.right.rotation.toFixed(1)} },`,
         `  }${comma}`,
