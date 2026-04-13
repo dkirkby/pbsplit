@@ -8,13 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Delivery Constraints
 
-- **Single self-contained HTML file** — no build step, no npm, no bundler
+- **Two files in `docs/`**: `index.html` (app) and `settings.js` (positions/defaults) — no build step, no npm, no bundler
 - Vanilla JavaScript, HTML, CSS only; no frameworks
-- All SVGs must be embedded inline (inline `VectorBoot.svg`)
+- All SVGs must be embedded inline in `index.html` (inline `VectorBoot.svg`)
 - Tailwind only via CDN if needed; plain CSS preferred
 - Must run in current mobile Safari and Chrome without a server
+- `docs/` is the GitHub Pages deployment root
 
-There are no build, lint, or test commands — open the HTML file directly in a browser to develop and test.
+There are no build, lint, or test commands — open `docs/index.html` directly in a browser to develop and test.
 
 ## Specification
 
@@ -22,7 +23,7 @@ There are no build, lint, or test commands — open the HTML file directly in a 
 
 - **§7 State Model**: explicit state machine — states `setup → ready → running → stopped`; per-rep phases `idleWait → anticipation → preSplit → impact → reaction → reset`
 - **§8 Timing Parameters**: `minWait`, `maxWait`, `shrinkDuration`, `preSplitBuffer` are user-configurable; `reactionDelay=0.10s`, `resetDelay=1.50s` are fixed
-- **§10 Movement Definitions**: neutral stance coordinates, split-step offsets, and 5 named reaction movements (A–E) are all specified as pixel values — implement these as named constants
+- **§10 Movement Definitions**: neutral stance coordinates, split-step offsets, and reaction movements — in practice implemented in `settings.js` using normalized coordinates (1 unit = `0.5 * min(stageW, stageH)`), not raw pixels
 - **§14 Scheduling**: use explicit JS timers for all phase transitions; store all timer IDs so Stop can cancel them; never rely on chained CSS animation events for phase control
 - **§12 Audio**: Web Audio API preferred, HTMLAudioElement fallback; must gate all playback on a user gesture; drill must function visually if audio fails
 
@@ -44,9 +45,31 @@ Follow the section order from §19 of SPEC.md inside the single HTML file:
 
 Keep all tunable values (foot positions, rotation angles, animation durations) as named constants in section 4. Do not scatter magic numbers through the logic.
 
+## `settings.js` — Positions and Defaults
+
+`docs/settings.js` is loaded before the inline script. It defines:
+
+- `POSITIONS_REV` — integer version; **increment whenever editing `settings.js`** so the app discards any stale overrides from `localStorage` and reloads from disk
+- `SETTINGS` — default values for `minWait`, `maxWait`, `shrink`, `footSpeed`, `footColor`, and `movements` (array of enabled movement names)
+- `POSITIONS` — array of position objects. Each has `name`, `left`, `right` (each with `cx`, `cy`, `rotation`). Reaction movements also carry `mirrored: bool`. Reserved names: `neutral`, `split`.
+
+Coordinates use a normalized system: positive `cx` = right, positive `cy` = upward on screen; `1 unit = 0.5 * min(stageW, stageH)` pixels. Rotation is degrees clockwise.
+
+The in-memory `positions` array (and `POS` lookup map rebuilt via `rebuildPOS()`) may differ from `POSITIONS` when the user has saved custom edits via the Movement Editor.
+
+## Movement Editor
+
+A full-screen overlay (`#editor-overlay`) lets users drag-and-drop feet to define custom reaction movement positions. Key details:
+
+- Ghost feet show the split-step reference stance; draggable colored feet represent the movement being edited
+- Dragging the **heel** translates the foot; dragging the **toe** rotates it
+- The **Mirror Feet** checkbox sets `mirrored: true` on the position, causing the drill to randomly flip the movement left/right
+- New/rename/delete operations update `positions` in memory; saving writes a downloadable `settings.js` via `#settings-download-link`
+- The editor runs on a separate layout path — `#editor-stage` mirrors `#stage` sizing but is inside the overlay
+
 ## Implementation Notes (from M1)
 
-`index.html` is the delivered file. Key non-obvious decisions made during implementation:
+`docs/index.html` is the delivered app file. Key non-obvious decisions made during implementation:
 
 **Layout** — bottom of the page is split into two stacked elements: `#toolbar` (always visible, contains Start/Stop/Audio/⚙ buttons) and `#config-panel` (collapsible, contains timing inputs and movement checkboxes). The stage (`flex:1`) fills remaining height. Config panel uses `max-height` transition to slide open/close.
 
@@ -57,7 +80,7 @@ Keep all tunable values (foot positions, rotation angles, animation durations) a
 ## Key Implementation Rules
 
 - Stop must cancel all pending timers and prevent stale callbacks from firing
-- Persisted settings: timing inputs, enabled movement checkboxes (via `localStorage`)
+- Persisted settings: timing inputs (`minWait`, `maxWait`, `shrink`, `footSpeed`), shoe color, display options (Counter/Timer), enabled movement names, and custom `positions` — all via `localStorage`, keyed on `POSITIONS_REV`
 - `prefers-reduced-motion`: transitions still occur but near-instant
 - Wake Lock: request on drill start, release on stop/page-hidden; fail silently
 - No movements selected → disable Start, show "Select at least one movement."

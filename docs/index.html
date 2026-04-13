@@ -119,7 +119,7 @@
       color: #111;
       flex: 1;
     }
-    #btn-settings {
+    #btn-settings, #btn-help {
       background: #2a2a2a;
       color: var(--fg);
       font-size: 1.25rem;
@@ -402,6 +402,66 @@
       font-size: 0.95rem;
       font-weight: 600;
     }
+    /* ── Help Overlay ────────────────────────────────────────── */
+    #help-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+    }
+    #help-overlay[hidden] { display: none; }
+
+    #help-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px 8px;
+      max-width: 600px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    #help-content h1 {
+      font-size: 1.3rem;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+    #help-content h2 {
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #999;
+      margin: 20px 0 8px;
+    }
+    #help-content p {
+      font-size: 0.95rem;
+      line-height: 1.55;
+      color: var(--fg);
+    }
+    #help-content ol {
+      padding-left: 1.4em;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #help-content li {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: var(--fg);
+    }
+
+    #help-footer {
+      flex-shrink: 0;
+      background: #1a1a1a;
+      border-top: 1px solid #2a2a2a;
+      padding: 10px 12px 12px;
+    }
+    #btn-help-close {
+      width: 100%;
+      background: var(--accent);
+      color: #111;
+    }
+
   </style>
 </head>
 <body>
@@ -483,6 +543,7 @@
     <button id="btn-start" disabled aria-describedby="validation-msg">Start Drill</button>
     <button id="btn-settings" aria-expanded="false" aria-controls="config-panel"
             title="Settings">⚙</button>
+    <button id="btn-help" title="Help">?</button>
   </div>
   <div id="validation-msg" role="alert" aria-live="polite">
     Select at least one movement.
@@ -545,6 +606,56 @@
 </div>
 
 </div><!-- #footer -->
+
+<!-- ── Help Overlay ───────────────────────────────────────── -->
+<!-- HELP TEXT: edit the content inside #help-content freely.   -->
+<!-- Headings use <h1>/<h2>, body text uses <p> and <ol>/<li>.  -->
+<div id="help-overlay" hidden>
+
+  <div id="help-content">
+
+    <h1>Split-Step Trainer</h1>
+    <p>This app helps you train the timing of your split-step and subsequent movement in
+    pickleball. It shows animated feet reacting to a simulated paddle strike, so you can
+    practice footwork patterns synchronized to your opponent hitting the ball.</p>
+
+    <h2>How a rep works</h2>
+    <ol>
+      <li>A large circle shrinking to a point represents the ball traveling to and making
+          contact with your opponent's paddle.</li>
+      <li>Just before impact, take a small hop and land in the "split-step stance" with
+          your feet separated and facing forwards.</li>
+      <li>Time your hop to land just as the circle shrinks to a point.</li>
+      <li>A fraction of a second later, the on-screen feet move to show you how you need
+          to react to this ball.</li>
+      <li>After a brief pause, the drill resets and repeats automatically. An optional
+          counter and timer track the length of your drill.</li>
+    </ol>
+
+    <h2>Getting started</h2>
+    <ol>
+      <li>Tap ⚙ to open settings.</li>
+      <li>Under <strong>Reaction Movements</strong>, check the movements you want to
+          practice. Uncheck all movements to just practice the split-step hop.</li>
+      <li>Adjust <strong>Min/Max Wait</strong> to control how long between reps (longer =
+          more realistic match rhythm; shorter = higher-volume training).</li>
+      <li>Tap <strong>Start Drill</strong> and place your device in front of you.</li>
+      <li>Tap anywhere on screen to end the drill.</li>
+    </ol>
+
+    <h2>Customizing movements</h2>
+    <p>Tap <strong>Edit Movements</strong> to open the movement editor. Drag a foot's heel
+    to reposition it, or drag its toe to rotate it. Enable <strong>Mirror Feet</strong>
+    for a stance where the feet are mirrored, so positioning one foot automatically
+    positions the other one.</p>
+
+  </div>
+
+  <div id="help-footer">
+    <button id="btn-help-close">Got it</button>
+  </div>
+
+</div>
 
 <!-- ── Movement Editor Overlay ────────────────────────────── -->
 <div id="editor-overlay" hidden>
@@ -632,6 +743,9 @@
 
   const btnStart      = document.getElementById('btn-start');
   const btnSettings   = document.getElementById('btn-settings');
+  const btnHelp       = document.getElementById('btn-help');
+  const helpOverlay   = document.getElementById('help-overlay');
+  const btnHelpClose  = document.getElementById('btn-help-close');
   const footer        = document.getElementById('footer');
   const configPanel   = document.getElementById('config-panel');
   const validationMsg = document.getElementById('validation-msg');
@@ -704,6 +818,7 @@
     timer:        'ss_timer',
     positions:    'ss_positions',
     positionsRev: 'ss_positionsRev',
+    helpSeen:     'ss_helpSeen',
   };
 
   function loadCustomPositions() {
@@ -1399,7 +1514,18 @@
     settingsDlLink.href = url;
   }
 
-  // ── 15. Init ─────────────────────────────────────────────────────────────────
+  // ── 15. Help overlay ─────────────────────────────────────────────────────────
+
+  function openHelp()  { helpOverlay.hidden = false; }
+  function closeHelp() {
+    helpOverlay.hidden = true;
+    localStorage.setItem(LS_KEYS.helpSeen, 'true');
+  }
+
+  btnHelp.addEventListener('click', openHelp);
+  btnHelpClose.addEventListener('click', closeHelp);
+
+  // ── 16. Init ─────────────────────────────────────────────────────────────────
 
   loadCustomPositions();
   loadSettings();
@@ -1417,6 +1543,8 @@
     document.documentElement.style.setProperty('--stat-font-size', `${minDim * 0.05}px`);
     if (state.top !== 'running') snapNeutral();
   }).observe(stageEl);
+
+  if (!localStorage.getItem(LS_KEYS.helpSeen)) openHelp();
 </script>
 
 </body>

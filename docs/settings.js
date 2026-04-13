@@ -9,7 +9,7 @@
 // Increment POSITIONS_REV when editing this file so the app reloads
 // fresh from disk, discarding any overrides stored in localStorage.
 
-const POSITIONS_REV = 2;
+const POSITIONS_REV = 1;
 
 const SETTINGS = {
   minWait:   0.5,
@@ -17,7 +17,7 @@ const SETTINGS = {
   shrink:    1,
   footSpeed: 5,
   footColor: '#3269a8',
-  movements: ["Drive Forward"],  // enabled reaction movement names
+  movements: ['Drive Forward', 'Drive Backward', 'Unit Turn'],  // enabled reaction movement names
 };
 
 const POSITIONS = [
@@ -28,25 +28,25 @@ const POSITIONS = [
   },
   {
     name:  'split',
-    left:  { cx: -0.900, cy: 0.000, rotation: -8.0 },
-    right: { cx: 0.900, cy: 0.000, rotation: 8.0 },
+    left:  { cx: -0.750, cy: 0.000, rotation: -8.0 },
+    right: { cx: 0.750, cy: 0.000, rotation: 8.0 },
   },
   {
     name:  'Drive Forward',
     mirrored: false,
-    left:  { cx: -0.928, cy: 0.003, rotation: -29.1 },
+    left:  { cx: -0.753, cy: -0.020, rotation: -29.1 },
     right: { cx: 0.521, cy: 0.755, rotation: -21.3 },
   },
   {
     name:  'Drive Backward',
     mirrored: false,
-    left:  { cx: -0.833, cy: 0.000, rotation: 14.1 },
+    left:  { cx: -0.695, cy: 0.010, rotation: 14.1 },
     right: { cx: 0.373, cy: -0.745, rotation: 37.8 },
   },
   {
     name:  'Unit Turn',
     mirrored: false,
-    left:  { cx: -0.913, cy: -0.415, rotation: -65.1 },
-    right: { cx: -0.455, cy: 0.819, rotation: -60.2 },
+    left:  { cx: -0.815, cy: -0.146, rotation: -61.7 },
+    right: { cx: -0.461, cy: 0.787, rotation: -48.9 },
   }
 ];
