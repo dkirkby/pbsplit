@@ -3,16 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Split-Step">
+  <meta name="theme-color" content="#111111">
+  <link rel="apple-touch-icon" id="apple-touch-icon" href="">
   <title>Split-Step Trainer</title>
   <style>
     /* ── Variables ───────────────────────────────────────────── */
     :root {
-      --bg:      #111;
-      --fg:      #e8e8e8;
-      --accent:  #aaff00;
-      --warn:    #ff5533;
-      --muted:   #555;
-      --radius:  8px;
+      --bg:         #111;
+      --fg:         #e8e8e8;
+      --accent:     #aaff00;
+      --warn:       #ff5533;
+      --muted:      #555;
+      --radius:     8px;
+      --foot-color: #3269a8;
     }
 
     /* ── Reset ───────────────────────────────────────────────── */
@@ -26,6 +32,7 @@
       min-height: 100dvh;
       display: flex;
       flex-direction: column;
+      user-select: none;
     }
 
     /* ── Drill Stage ─────────────────────────────────────────── */
@@ -34,6 +41,7 @@
       position: relative;
       overflow: hidden;
       min-height: 280px;
+      touch-action: manipulation;
     }
 
     /* Countdown circle */
@@ -59,7 +67,7 @@
       height: 20dvh;
       aspect-ratio: 317 / 470;
       overflow: visible;
-      color: var(--fg); /* currentColor source for child <use> fill */
+      color: var(--foot-color); /* currentColor source for child <use> fill */
     }
 
     /*
@@ -109,16 +117,6 @@
     #btn-start {
       background: var(--accent);
       color: #111;
-      flex: 1;
-    }
-    #btn-stop {
-      background: var(--warn);
-      color: #fff;
-      flex: 1;
-    }
-    #btn-audio {
-      background: #333;
-      color: var(--fg);
       flex: 1;
     }
     #btn-settings {
@@ -194,6 +192,15 @@
     .field input[type="number"]:focus {
       outline: 1px solid var(--accent);
       border-color: var(--accent);
+    }
+    .field input[type="color"] {
+      width: 100%;
+      min-height: 44px;
+      padding: 4px 6px;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: var(--radius);
+      cursor: pointer;
     }
 
     /* Movement checklist */
@@ -304,6 +311,22 @@
     .foot-draggable.zone-mid    { cursor: default; }
     #editor-foot-left, #editor-foot-right { transition: none !important; }
 
+    /* Tap-to-stop hint shown briefly at drill start */
+    #tap-hint {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 18px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    #tap-hint.visible { opacity: 1; }
+
     #editor-hint {
       position: absolute;
       bottom: 8px;
@@ -369,6 +392,9 @@
   <!-- Countdown circle -->
   <div id="circle"></div>
 
+  <!-- Brief tap-to-stop affordance shown at drill start -->
+  <div id="tap-hint">Tap anywhere to stop</div>
+
   <!-- Hidden SVG defs — boot symbol (right foot, viewBox 0 0 317 470) -->
   <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
     <defs>
@@ -425,12 +451,13 @@
 
 </main>
 
+<!-- ── Footer (toolbar + collapsible config) ──────────────────── -->
+<div id="footer">
+
 <!-- ── Toolbar (always visible) ───────────────────────────────── -->
 <div id="toolbar">
   <div class="btn-row">
     <button id="btn-start" disabled aria-describedby="validation-msg">Start Drill</button>
-    <button id="btn-stop">Stop</button>
-    <button id="btn-audio">Load Audio</button>
     <button id="btn-settings" aria-expanded="false" aria-controls="config-panel"
             title="Settings">⚙</button>
   </div>
@@ -461,6 +488,10 @@
         <label for="input-foot-speed">Foot Speed (r/s)</label>
         <input type="number" id="input-foot-speed" value="2.5" min="0.1" max="20" step="0.1">
       </div>
+      <div class="field">
+        <label for="input-foot-color">Shoe Color</label>
+        <input type="color" id="input-foot-color" value="#3269a8">
+      </div>
     </div>
 
     <!-- Movement checklist (built dynamically from positions) -->
@@ -474,6 +505,8 @@
 
   </div>
 </div>
+
+</div><!-- #footer -->
 
 <!-- ── Movement Editor Overlay ────────────────────────────── -->
 <div id="editor-overlay" hidden>
@@ -557,17 +590,62 @@
   // ── 3. DOM refs ──────────────────────────────────────────────────────────────
 
   const btnStart      = document.getElementById('btn-start');
-  const btnStop       = document.getElementById('btn-stop');
   const btnSettings   = document.getElementById('btn-settings');
+  const footer        = document.getElementById('footer');
   const configPanel   = document.getElementById('config-panel');
   const validationMsg = document.getElementById('validation-msg');
   const circleEl      = document.getElementById('circle');
+  const tapHint       = document.getElementById('tap-hint');
   const footLeft      = document.getElementById('foot-left');
   const footRight     = document.getElementById('foot-right');
   const inputMinWait   = document.getElementById('input-min-wait');
   const inputMaxWait   = document.getElementById('input-max-wait');
   const inputShrink    = document.getElementById('input-shrink');
   const inputFootSpeed = document.getElementById('input-foot-speed');
+  const inputFootColor = document.getElementById('input-foot-color');
+
+  // ── 3b. Home screen icon (generated via canvas so no external file needed) ────
+
+  (function buildTouchIcon() {
+    const S = 180;
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const ctx = c.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(0, 0, S, S);
+
+    // Draw two simplified feet (heel + toe oval) in accent green
+    ctx.fillStyle = '#aaff00';
+    function drawFoot(cx, cy, angle) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+      // Sole
+      ctx.beginPath();
+      ctx.ellipse(0, 10, 20, 38, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Toe
+      ctx.beginPath();
+      ctx.ellipse(0, -32, 13, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    // Split-step stance: feet spread wide, toes slightly outward
+    drawFoot(68,  100, -0.14);
+    drawFoot(112, 100,  0.14);
+
+    // Label
+    ctx.fillStyle = '#111111';
+    ctx.font = 'bold 18px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Split-Step', S / 2, 148);
+
+    const link = document.getElementById('apple-touch-icon');
+    if (link) link.href = c.toDataURL('image/png');
+  })();
 
   // ── 4. Settings persistence ──────────────────────────────────────────────────
 
@@ -576,6 +654,7 @@
     maxWait:      'ss_maxWait',
     shrink:       'ss_shrink',
     footSpeed:    'ss_footSpeed',
+    footColor:    'ss_footColor',
     movements:    'ss_movements',
     positions:    'ss_positions',
     positionsRev: 'ss_positionsRev',
@@ -606,6 +685,10 @@
     updateDownloadLink();
   }
 
+  function applyFootColor(color) {
+    document.documentElement.style.setProperty('--foot-color', color);
+  }
+
   function loadSettings() {
     const S = (typeof SETTINGS !== 'undefined') ? SETTINGS : {};
     const get = (k, d) => { const v = localStorage.getItem(k); return v !== null ? v : d; };
@@ -613,6 +696,9 @@
     inputMaxWait.value   = get(LS_KEYS.maxWait,   String(S.maxWait   ?? 10));
     inputShrink.value    = get(LS_KEYS.shrink,    String(S.shrink    ?? 2));
     inputFootSpeed.value = get(LS_KEYS.footSpeed, String(S.footSpeed ?? 2.5));
+    const color = get(LS_KEYS.footColor, S.footColor ?? '#3269a8');
+    inputFootColor.value = color;
+    applyFootColor(color);
   }
 
   function saveSettings() {
@@ -620,6 +706,8 @@
     localStorage.setItem(LS_KEYS.maxWait,   inputMaxWait.value);
     localStorage.setItem(LS_KEYS.shrink,    inputShrink.value);
     localStorage.setItem(LS_KEYS.footSpeed, inputFootSpeed.value);
+    localStorage.setItem(LS_KEYS.footColor, inputFootColor.value);
+    applyFootColor(inputFootColor.value);
     const cbs = document.querySelectorAll('input[name="movement"]');
     const enabled = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
     localStorage.setItem(LS_KEYS.movements, enabled.join(','));
@@ -851,16 +939,41 @@
     snapNeutral();
     hideCircle();
     requestWakeLock();
+    // Hide footer; remember config open state so we can restore it on stop.
+    state.configWasOpen = configPanel.classList.contains('open');
+    footer.hidden = true;
+    // Show "Tap anywhere to stop" hint briefly, then fade it out.
+    tapHint.classList.add('visible');
+    const hintTimer = setTimeout(() => tapHint.classList.remove('visible'), 3000);
+    state.timers.push(hintTimer);
+    // Register click-anywhere-to-stop after a tick so this click doesn't trigger it.
+    setTimeout(() => document.addEventListener('click', stopOnClick), 0);
     runRep(settings);
   }
 
+  function stopOnClick() {
+    document.removeEventListener('click', stopOnClick);
+    stopDrill();
+  }
+
   function stopDrill() {
+    document.removeEventListener('click', stopOnClick);
     state.top   = 'stopped';
     state.phase = null;
     clearAllTimers();
     moveToNeutral(state.footSpeed);
     hideCircle();
     releaseWakeLock();
+    tapHint.classList.remove('visible');
+    // Restore footer and config panel state.
+    footer.hidden = false;
+    if (state.configWasOpen) {
+      configPanel.classList.add('open');
+      btnSettings.setAttribute('aria-expanded', 'true');
+    } else {
+      configPanel.classList.remove('open');
+      btnSettings.setAttribute('aria-expanded', 'false');
+    }
     updateStart();
   }
 
@@ -876,7 +989,6 @@
   // ── 12. Event listeners ──────────────────────────────────────────────────────
 
   btnStart.addEventListener('click', startDrill);
-  btnStop.addEventListener('click',  stopDrill);
 
   btnSettings.addEventListener('click', () => {
     const open = configPanel.classList.toggle('open');
@@ -886,6 +998,7 @@
   [inputMinWait, inputMaxWait, inputShrink, inputFootSpeed].forEach(el =>
     el.addEventListener('change', saveSettings)
   );
+  inputFootColor.addEventListener('input', saveSettings);
 
   // ── 13. Movement Editor ──────────────────────────────────────────────────────
 
@@ -1176,6 +1289,7 @@
       `  maxWait:   ${parseFloat(inputMaxWait.value)},`,
       `  shrink:    ${parseFloat(inputShrink.value)},`,
       `  footSpeed: ${parseFloat(inputFootSpeed.value)},`,
+      `  footColor: '${inputFootColor.value}',`,
       `  movements: ${JSON.stringify(enabledNames)},  // enabled reaction movement names`,
       '};',
       '',

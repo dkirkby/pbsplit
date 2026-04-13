@@ -16,6 +16,7 @@ const SETTINGS = {
   maxWait:   10,
   shrink:    2,
   footSpeed: 2.5,
+  footColor: '#3269a8',
   movements: ['Volley'],  // enabled reaction movement names
 };
 
