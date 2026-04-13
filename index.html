@@ -732,8 +732,8 @@
   function moveToReaction(pos, footSpeed) {
     let l = pos.left, r = pos.right;
     if (!pos.mirrored && Math.random() < 0.5) {
-      l = { cx: -pos.left.cx,  cy: pos.left.cy,  rotation: -pos.left.rotation  };
-      r = { cx: -pos.right.cx, cy: pos.right.cy, rotation: -pos.right.rotation };
+      l = { cx: -pos.right.cx, cy: pos.right.cy, rotation: -pos.right.rotation };
+      r = { cx: -pos.left.cx,  cy: pos.left.cy,  rotation: -pos.left.rotation  };
     }
     moveFoot(footLeft,  'left',  l, footSpeed);
     moveFoot(footRight, 'right', r, footSpeed);
