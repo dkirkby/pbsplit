@@ -17,8 +17,9 @@
       --accent:     #aaff00;
       --warn:       #ff5533;
       --muted:      #555;
-      --radius:     8px;
-      --foot-color: #3269a8;
+      --radius:       8px;
+      --foot-color:   #3269a8;
+      --config-offset: 0px; /* set by JS to half the config panel height; keeps feet window-centered */
     }
 
     /* ── Reset ───────────────────────────────────────────────── */
@@ -63,7 +64,7 @@
     .foot {
       position: absolute;
       left: 50%;
-      top: 50%;
+      top: calc(50% + var(--config-offset));
       height: 20dvh;
       aspect-ratio: 317 / 470;
       overflow: visible;
@@ -1543,6 +1544,13 @@
     document.documentElement.style.setProperty('--stat-font-size', `${minDim * 0.05}px`);
     if (state.top !== 'running') snapNeutral();
   }).observe(stageEl);
+
+  // Keep --config-offset = half the config panel height so feet stay window-centered
+  // while the panel is open or animating. Fires on every frame of the panel transition.
+  new ResizeObserver(() => {
+    const offset = footer.offsetHeight / 2;
+    document.documentElement.style.setProperty('--config-offset', `${offset}px`);
+  }).observe(footer);
 
   if (!localStorage.getItem(LS_KEYS.helpSeen)) openHelp();
 </script>
