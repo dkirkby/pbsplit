@@ -1,4 +1,4 @@
-// Foot positions for the Split-Step Trainer.
+// Split-Step Trainer settings.
 //
 // Coords (cx, cy) are relative to the circle center; 1 unit = 0.5 * min(stageW, stageH).
 // Positive cx = right, positive cy = upward on screen.
@@ -10,6 +10,14 @@
 // fresh from disk, discarding any overrides stored in localStorage.
 
 const POSITIONS_REV = 1;
+
+const SETTINGS = {
+  minWait:   5,
+  maxWait:   10,
+  shrink:    2,
+  footSpeed: 2.5,
+  movements: ['Volley'],  // enabled reaction movement names
+};
 
 const POSITIONS = [
   {
