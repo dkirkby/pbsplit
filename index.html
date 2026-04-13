@@ -151,7 +151,7 @@
       padding: 0 16px;
     }
     #config-panel.open {
-      max-height: 480px;
+      max-height: 600px;
       padding: 16px 16px 20px;
       overflow-y: auto;
     }
@@ -311,6 +311,26 @@
     .foot-draggable.zone-mid    { cursor: default; }
     #editor-foot-left, #editor-foot-right { transition: none !important; }
 
+    /* Counter / timer display during drill */
+    #drill-stats {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      white-space: pre;
+      text-align: center;
+      font-size: var(--stat-font-size, 5vmin);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--fg);
+      opacity: 0.55;
+      pointer-events: none;
+      line-height: 1.3;
+    }
+    #drill-stats[hidden] { display: none; }
+
     /* Tap-to-stop hint shown briefly at drill start */
     #tap-hint {
       position: absolute;
@@ -394,6 +414,9 @@
 
   <!-- Brief tap-to-stop affordance shown at drill start -->
   <div id="tap-hint">Tap anywhere to stop</div>
+
+  <!-- Counter / timer shown during drill -->
+  <div id="drill-stats" hidden></div>
 
   <!-- Hidden SVG defs — boot symbol (right foot, viewBox 0 0 317 470) -->
   <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
@@ -494,6 +517,21 @@
       </div>
     </div>
 
+    <!-- Display options -->
+    <div>
+      <div class="movements-label">Display During Drill</div>
+      <div class="movements-list">
+        <label class="movement-item">
+          <input type="checkbox" id="cb-counter" name="display">
+          Counter
+        </label>
+        <label class="movement-item">
+          <input type="checkbox" id="cb-timer" name="display">
+          Timer
+        </label>
+      </div>
+    </div>
+
     <!-- Movement checklist (built dynamically from positions) -->
     <div>
       <div class="movements-label">Reaction Movements</div>
@@ -581,10 +619,13 @@
     top:       'setup',  // setup | ready | running | stopped
     phase:     null,     // idleWait | anticipation | preSplit | impact | reaction | reset
     timers:    [],
-    wakeLock:  null,
-    footSpeed: 2.5,      // last-used foot speed (normalized units/sec); used by stopDrill
-    leftPos:   null,     // current target position of left foot (normalized)
-    rightPos:  null,     // current target position of right foot (normalized)
+    wakeLock:      null,
+    footSpeed:     2.5,   // last-used foot speed (normalized units/sec); used by stopDrill
+    leftPos:       null,  // current target position of left foot (normalized)
+    rightPos:      null,  // current target position of right foot (normalized)
+    repCount:      0,
+    drillStart:    0,
+    statsInterval: null,
   };
 
   // ── 3. DOM refs ──────────────────────────────────────────────────────────────
@@ -603,6 +644,9 @@
   const inputShrink    = document.getElementById('input-shrink');
   const inputFootSpeed = document.getElementById('input-foot-speed');
   const inputFootColor = document.getElementById('input-foot-color');
+  const cbCounter      = document.getElementById('cb-counter');
+  const cbTimer        = document.getElementById('cb-timer');
+  const statsEl        = document.getElementById('drill-stats');
 
   // ── 3b. Home screen icon (generated via canvas so no external file needed) ────
 
@@ -656,6 +700,8 @@
     footSpeed:    'ss_footSpeed',
     footColor:    'ss_footColor',
     movements:    'ss_movements',
+    counter:      'ss_counter',
+    timer:        'ss_timer',
     positions:    'ss_positions',
     positionsRev: 'ss_positionsRev',
   };
@@ -699,6 +745,8 @@
     const color = get(LS_KEYS.footColor, S.footColor ?? '#3269a8');
     inputFootColor.value = color;
     applyFootColor(color);
+    cbCounter.checked = get(LS_KEYS.counter, 'false') === 'true';
+    cbTimer.checked   = get(LS_KEYS.timer,   'false') === 'true';
   }
 
   function saveSettings() {
@@ -708,6 +756,8 @@
     localStorage.setItem(LS_KEYS.footSpeed, inputFootSpeed.value);
     localStorage.setItem(LS_KEYS.footColor, inputFootColor.value);
     applyFootColor(inputFootColor.value);
+    localStorage.setItem(LS_KEYS.counter, cbCounter.checked);
+    localStorage.setItem(LS_KEYS.timer,   cbTimer.checked);
     const cbs = document.querySelectorAll('input[name="movement"]');
     const enabled = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
     localStorage.setItem(LS_KEYS.movements, enabled.join(','));
@@ -879,7 +929,25 @@
     }
   });
 
-  // ── 9. Repetition scheduler ──────────────────────────────────────────────────
+  // ── 9. Stats display ─────────────────────────────────────────────────────────
+
+  function updateStatsDisplay() {
+    const showCounter = cbCounter.checked;
+    const showTimer   = cbTimer.checked;
+    if (!showCounter && !showTimer) { statsEl.hidden = true; return; }
+    statsEl.hidden = false;
+    const lines = [];
+    if (showCounter) lines.push(String(state.repCount));
+    if (showTimer) {
+      const secs = Math.floor((Date.now() - state.drillStart) / 1000);
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      lines.push(`${m}:${String(s).padStart(2, '0')}`);
+    }
+    statsEl.textContent = lines.join('\n');
+  }
+
+  // ── 10. Repetition scheduler ──────────────────────────────────────────────────
 
   function runRep(settings) {
     if (state.top !== 'running') return;
@@ -908,7 +976,9 @@
     schedule(() => {
       if (state.top !== 'running') return;
       state.phase = 'impact';
+      state.repCount++;
       hideCircle();
+      updateStatsDisplay();
     }, waitS + shrinkS);
 
     if (movement) {
@@ -935,8 +1005,14 @@
     saveSettings();
     state.top       = 'running';
     state.footSpeed = settings.footSpeed;
+    state.repCount  = 0;
+    state.drillStart = Date.now();
     btnStart.disabled = true;
     snapNeutral();
+    updateStatsDisplay();
+    if (cbCounter.checked || cbTimer.checked) {
+      state.statsInterval = setInterval(updateStatsDisplay, 500);
+    }
     hideCircle();
     requestWakeLock();
     // Hide footer; remember config open state so we can restore it on stop.
@@ -961,6 +1037,8 @@
     state.top   = 'stopped';
     state.phase = null;
     clearAllTimers();
+    if (state.statsInterval) { clearInterval(state.statsInterval); state.statsInterval = null; }
+    statsEl.hidden = true;
     moveToNeutral(state.footSpeed);
     hideCircle();
     releaseWakeLock();
@@ -999,6 +1077,7 @@
     el.addEventListener('change', saveSettings)
   );
   inputFootColor.addEventListener('input', saveSettings);
+  [cbCounter, cbTimer].forEach(el => el.addEventListener('change', saveSettings));
 
   // ── 13. Movement Editor ──────────────────────────────────────────────────────
 
@@ -1335,6 +1414,7 @@
     minDim     = Math.min(width, height);
     circleSize = minDim * 0.9;
     document.documentElement.style.setProperty('--circle-d', `${circleSize}px`);
+    document.documentElement.style.setProperty('--stat-font-size', `${minDim * 0.05}px`);
     if (state.top !== 'running') snapNeutral();
   }).observe(stageEl);
 </script>
