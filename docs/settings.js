@@ -9,15 +9,18 @@
 // Increment POSITIONS_REV when editing this file so the app reloads
 // fresh from disk, discarding any overrides stored in localStorage.
 
-const POSITIONS_REV = 1;
+const POSITIONS_REV = 3;
 
 const SETTINGS = {
-  minWait:   0.5,
-  maxWait:   1,
-  shrink:    1,
-  footSpeed: 5,
-  footColor: '#3269a8',
-  movements: ['Drive Forward', 'Drive Backward', 'Unit Turn'],  // enabled reaction movement names
+  minWait:          0.5,
+  maxWait:          1,
+  shrink:           0.7,
+  footSpeed:        5,
+  footColor:        '#3269a8',
+  courtColor:       '#a5c639',
+  progressive:      true,
+  progressionLength: 40,
+  movements: ["Drive Forward","Drive Backward","Unit Turn"],  // enabled reaction movement names
 };
 
 const POSITIONS = [

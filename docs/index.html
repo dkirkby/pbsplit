@@ -14,11 +14,13 @@
     :root {
       --bg:         #111;
       --fg:         #e8e8e8;
-      --accent:     #aaff00;
+      --accent:     var(--court-color);
       --warn:       #ff5533;
       --muted:      #555;
-      --radius:       8px;
-      --foot-color:   #3269a8;
+      --radius:        8px;
+      --foot-color:    #3269a8;
+      --circle-color:  #f7d850;
+      --court-color:   #a5c639;
       --config-offset: 0px; /* set by JS to half the config panel height; keeps feet window-centered */
     }
 
@@ -43,6 +45,7 @@
       overflow: hidden;
       min-height: 280px;
       touch-action: manipulation;
+      background: var(--court-color);
     }
 
     /* Countdown circle */
@@ -54,7 +57,7 @@
       height: var(--circle-d);
       transform: translate(-50%, -50%);
       border-radius: 50%;
-      border: 4px solid var(--accent);
+      border: 4px solid var(--circle-color);
       box-sizing: content-box;
       pointer-events: none;
       visibility: hidden;
@@ -117,7 +120,7 @@
 
     #btn-start {
       background: var(--accent);
-      color: #111;
+      color: var(--foot-color);
       flex: 1;
     }
     #btn-settings, #btn-help {
@@ -152,9 +155,8 @@
       padding: 0 16px;
     }
     #config-panel.open {
-      max-height: 600px;
+      max-height: 900px;
       padding: 16px 16px 20px;
-      overflow-y: auto;
     }
 
     .config-section {
@@ -236,6 +238,23 @@
       accent-color: var(--accent);
       cursor: pointer;
     }
+    /* Small inline number field used inside the Progressive pill */
+    .inline-number {
+      width: 52px;
+      background: transparent;
+      color: var(--fg);
+      border: none;
+      border-bottom: 1px solid var(--muted);
+      border-radius: 0;
+      padding: 0 2px;
+      font-size: 0.9rem;
+      text-align: center;
+      -moz-appearance: textfield;
+    }
+    .inline-number::-webkit-outer-spin-button,
+    .inline-number::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .inline-number:focus { outline: none; border-bottom-color: var(--accent); }
+
     .movement-item:has(input:checked) {
       border-color: var(--accent);
       color: var(--accent);
@@ -577,11 +596,15 @@
         <label for="input-foot-color">Shoe Color</label>
         <input type="color" id="input-foot-color" value="#3269a8">
       </div>
+      <div class="field">
+        <label for="input-court-color">Court Color</label>
+        <input type="color" id="input-court-color" value="#a5c639">
+      </div>
     </div>
 
-    <!-- Display options -->
+    <!-- Options: display and progression -->
     <div>
-      <div class="movements-label">Display During Drill</div>
+      <div class="movements-label">Options</div>
       <div class="movements-list">
         <label class="movement-item">
           <input type="checkbox" id="cb-counter" name="display">
@@ -591,6 +614,13 @@
           <input type="checkbox" id="cb-timer" name="display">
           Timer
         </label>
+        <div class="movement-item">
+          <input type="checkbox" id="cb-progressive" checked>
+          <label for="cb-progressive">Progressive over</label>
+          <input type="number" id="input-progression-length" value="100"
+                 min="1" max="9999" step="1" class="inline-number">
+          <span>reps</span>
+        </div>
       </div>
     </div>
 
@@ -735,9 +765,10 @@
     footSpeed:     2.5,   // last-used foot speed (normalized units/sec); used by stopDrill
     leftPos:       null,  // current target position of left foot (normalized)
     rightPos:      null,  // current target position of right foot (normalized)
-    repCount:      0,
-    drillStart:    0,
-    statsInterval: null,
+    repCount:         0,
+    drillStart:       0,
+    statsInterval:    null,
+    progressionOrder: [],  // shuffled movement names set at drill start
   };
 
   // ── 3. DOM refs ──────────────────────────────────────────────────────────────
@@ -758,7 +789,10 @@
   const inputMaxWait   = document.getElementById('input-max-wait');
   const inputShrink    = document.getElementById('input-shrink');
   const inputFootSpeed = document.getElementById('input-foot-speed');
-  const inputFootColor = document.getElementById('input-foot-color');
+  const inputFootColor   = document.getElementById('input-foot-color');
+  const inputCourtColor  = document.getElementById('input-court-color');
+  const cbProgressive          = document.getElementById('cb-progressive');
+  const inputProgressionLength = document.getElementById('input-progression-length');
   const cbCounter      = document.getElementById('cb-counter');
   const cbTimer        = document.getElementById('cb-timer');
   const statsEl        = document.getElementById('drill-stats');
@@ -814,7 +848,10 @@
     shrink:       'ss_shrink',
     footSpeed:    'ss_footSpeed',
     footColor:    'ss_footColor',
+    courtColor:   'ss_courtColor',
     movements:    'ss_movements',
+    progressive:        'ss_progressive',
+    progressionLength:  'ss_progressionLength',
     counter:      'ss_counter',
     timer:        'ss_timer',
     positions:    'ss_positions',
@@ -851,6 +888,10 @@
     document.documentElement.style.setProperty('--foot-color', color);
   }
 
+  function applyCourtColor(color) {
+    document.documentElement.style.setProperty('--court-color', color);
+  }
+
   function loadSettings() {
     const S = (typeof SETTINGS !== 'undefined') ? SETTINGS : {};
     const get = (k, d) => { const v = localStorage.getItem(k); return v !== null ? v : d; };
@@ -861,6 +902,11 @@
     const color = get(LS_KEYS.footColor, S.footColor ?? '#3269a8');
     inputFootColor.value = color;
     applyFootColor(color);
+    const courtColor = get(LS_KEYS.courtColor, S.courtColor ?? '#a5c639');
+    inputCourtColor.value = courtColor;
+    applyCourtColor(courtColor);
+    cbProgressive.checked        = get(LS_KEYS.progressive,       String(S.progressive      ?? true)) === 'true';
+    inputProgressionLength.value = get(LS_KEYS.progressionLength, String(S.progressionLength ?? 100));
     cbCounter.checked = get(LS_KEYS.counter, 'false') === 'true';
     cbTimer.checked   = get(LS_KEYS.timer,   'false') === 'true';
   }
@@ -872,6 +918,10 @@
     localStorage.setItem(LS_KEYS.footSpeed, inputFootSpeed.value);
     localStorage.setItem(LS_KEYS.footColor, inputFootColor.value);
     applyFootColor(inputFootColor.value);
+    localStorage.setItem(LS_KEYS.courtColor, inputCourtColor.value);
+    applyCourtColor(inputCourtColor.value);
+    localStorage.setItem(LS_KEYS.progressive,      cbProgressive.checked);
+    localStorage.setItem(LS_KEYS.progressionLength, inputProgressionLength.value);
     localStorage.setItem(LS_KEYS.counter, cbCounter.checked);
     localStorage.setItem(LS_KEYS.timer,   cbTimer.checked);
     const cbs = document.querySelectorAll('input[name="movement"]');
@@ -914,11 +964,14 @@
     let shrink    = Math.max(0.2, Math.min(10, parseFloat(inputShrink.value)    || 2));
     let footSpeed = Math.max(0.1, Math.min(20, parseFloat(inputFootSpeed.value) || 2.5));
     if (maxWait < minWait) maxWait = minWait;
-    inputMinWait.value   = minWait;
-    inputMaxWait.value   = maxWait;
-    inputShrink.value    = shrink;
-    inputFootSpeed.value = footSpeed;
-    return { minWait, maxWait, shrink, footSpeed };
+    let progressionLength = Math.max(1, Math.min(9999, parseInt(inputProgressionLength.value) || 100));
+    inputMinWait.value          = minWait;
+    inputMaxWait.value          = maxWait;
+    inputShrink.value           = shrink;
+    inputFootSpeed.value        = footSpeed;
+    inputProgressionLength.value = progressionLength;
+    return { minWait, maxWait, shrink, footSpeed,
+             progressive: cbProgressive.checked, progressionLength };
   }
 
   // ── 6. Helpers ───────────────────────────────────────────────────────────────
@@ -930,10 +983,18 @@
     return Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
   }
 
-  function pickMovement() {
-    const names = enabledMovements();
-    if (!names.length) return null;
-    return POS[names[Math.floor(Math.random() * names.length)]] || null;
+  function pickMovement(settings) {
+    const order = state.progressionOrder;
+    if (!order.length) return null;
+    if (settings.progressive) {
+      const N = order.length;
+      const L = settings.progressionLength;
+      const phase = Math.min(Math.floor(state.repCount * (N + 1) / L), N);
+      if (phase === 0) return null;
+      const name = order[Math.floor(Math.random() * phase)];
+      return POS[name] || null;
+    }
+    return POS[order[Math.floor(Math.random() * order.length)]] || null;
   }
 
   function schedule(fn, delayS) {
@@ -1071,7 +1132,7 @@
     const waitS    = randBetween(settings.minWait, settings.maxWait);
     const shrinkS  = settings.shrink;
     const speed    = settings.footSpeed;
-    const movement = pickMovement();
+    const movement = pickMovement(settings);
     const splitDur = splitDuration(speed); // how early to start the split-step
 
     state.phase = 'idleWait';
@@ -1123,6 +1184,13 @@
     state.footSpeed = settings.footSpeed;
     state.repCount  = 0;
     state.drillStart = Date.now();
+    // Shuffle enabled movements into a random introduction order for progression.
+    const enabled = enabledMovements();
+    for (let i = enabled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [enabled[i], enabled[j]] = [enabled[j], enabled[i]];
+    }
+    state.progressionOrder = enabled;
     btnStart.disabled = true;
     snapNeutral();
     updateStatsDisplay();
@@ -1189,11 +1257,12 @@
     btnSettings.setAttribute('aria-expanded', String(open));
   });
 
-  [inputMinWait, inputMaxWait, inputShrink, inputFootSpeed].forEach(el =>
+  [inputMinWait, inputMaxWait, inputShrink, inputFootSpeed, inputProgressionLength].forEach(el =>
     el.addEventListener('change', saveSettings)
   );
   inputFootColor.addEventListener('input', saveSettings);
-  [cbCounter, cbTimer].forEach(el => el.addEventListener('change', saveSettings));
+  inputCourtColor.addEventListener('input', saveSettings);
+  [cbCounter, cbTimer, cbProgressive].forEach(el => el.addEventListener('change', saveSettings));
 
   // ── 13. Movement Editor ──────────────────────────────────────────────────────
 
@@ -1480,11 +1549,14 @@
       `const POSITIONS_REV = ${POSITIONS_REV + 1};`,
       '',
       'const SETTINGS = {',
-      `  minWait:   ${parseFloat(inputMinWait.value)},`,
-      `  maxWait:   ${parseFloat(inputMaxWait.value)},`,
-      `  shrink:    ${parseFloat(inputShrink.value)},`,
-      `  footSpeed: ${parseFloat(inputFootSpeed.value)},`,
-      `  footColor: '${inputFootColor.value}',`,
+      `  minWait:          ${parseFloat(inputMinWait.value)},`,
+      `  maxWait:          ${parseFloat(inputMaxWait.value)},`,
+      `  shrink:           ${parseFloat(inputShrink.value)},`,
+      `  footSpeed:        ${parseFloat(inputFootSpeed.value)},`,
+      `  footColor:        '${inputFootColor.value}',`,
+      `  courtColor:       '${inputCourtColor.value}',`,
+      `  progressive:      ${cbProgressive.checked},`,
+      `  progressionLength: ${parseInt(inputProgressionLength.value)},`,
       `  movements: ${JSON.stringify(enabledNames)},  // enabled reaction movement names`,
       '};',
       '',
