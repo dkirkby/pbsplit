@@ -304,6 +304,7 @@
     }
     #editor-name-input {
       flex: 1;
+      width: 100%;
       background: #222;
       color: var(--fg);
       border: 1px solid #333;
@@ -754,8 +755,10 @@
     </div>
     <div class="editor-row">
       <input id="editor-name-input" type="text" placeholder="Label" aria-label="Movement label">
-      <button id="btn-editor-rename">Rename</button>
-      <button id="btn-editor-delete">Delete</button>
+    </div>
+    <div class="editor-row">
+      <button id="btn-editor-rename" style="flex:1;">Rename</button>
+      <button id="btn-editor-delete" style="flex:1;">Delete</button>
     </div>
     <div class="editor-row">
       <label style="display:flex;align-items:center;gap:8px;min-height:36px;font-size:0.9rem;cursor:pointer;">
@@ -1403,12 +1406,12 @@
     buildMovementList();
   }
 
-  // Drag: toe (top 1/3 of SVG, y < 470/3) → rotate; heel (bottom 1/3, y > 470*2/3) → translate.
-  // Middle third is a dead zone. Zone is computed in SVG local coordinates via the CTM,
+  // Drag: heel (top ~45% of SVG, small y) → translate; toe (bottom ~35%, large y) → rotate.
+  // Middle is a dead zone. Zone is computed in SVG local coordinates via the CTM,
   // so it stays correct regardless of how the foot is rotated on screen.
   const SVG_H = 470;
-  const TOE_LIMIT  = SVG_H / 3;        // y < this → toe → rotate
-  const HEEL_START = SVG_H * 2 / 3;    // y > this → heel → translate
+  const HEEL_LIMIT  = SVG_H * 0.45;    // y < this → heel (top of SVG) → translate
+  const TOE_START   = SVG_H * 0.65;    // y > this → toe (bottom of SVG) → rotate
 
   function svgLocalY(footEl, clientX, clientY) {
     const ctm = footEl.getScreenCTM();
@@ -1419,8 +1422,8 @@
   function zoneFor(footEl, clientX, clientY) {
     const y = svgLocalY(footEl, clientX, clientY);
     if (y === null) return null;
-    if (y < TOE_LIMIT)  return 'toe';
-    if (y > HEEL_START) return 'heel';
+    if (y < HEEL_LIMIT) return 'heel';   // heel is at top of SVG (small y)
+    if (y > TOE_START)  return 'toe';    // toe is at bottom of SVG (large y)
     return 'mid';
   }
 
