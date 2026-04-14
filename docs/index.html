@@ -409,6 +409,22 @@
       border: 1px solid #3a3a3a;
       margin-top: 6px;
     }
+    #settings-download-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      background: #2a2a2a;
+      color: var(--fg);
+      border: 1px solid #3a3a3a;
+      border-radius: var(--radius);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    @media (pointer: coarse) {
+      #settings-download-link { display: none; }
+    }
     /* ── Help Overlay ────────────────────────────────────────── */
     #help-overlay {
       position: fixed;
@@ -630,6 +646,8 @@
       <div id="movements-list" class="movements-list" role="group" aria-label="Reaction movements"></div>
       <button id="btn-edit-movements">Edit Movements</button>
     </div>
+
+    <a id="settings-download-link" download="settings.js">&#8595; Save settings.js</a>
 
   </div>
 </div>
@@ -917,6 +935,7 @@
   function saveCustomPositions() {
     localStorage.setItem(LS_KEYS.positions,    JSON.stringify(positions));
     localStorage.setItem(LS_KEYS.positionsRev, String(POSITIONS_REV));
+    updateDownloadLink();
   }
 
   function applyFootColor(color) {
@@ -962,6 +981,7 @@
     const cbs = document.querySelectorAll('input[name="movement"]');
     const enabled = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
     localStorage.setItem(LS_KEYS.movements, enabled.join(','));
+    updateDownloadLink();
   }
 
   function buildMovementList() {
@@ -1314,6 +1334,7 @@
   const editorFootL      = document.getElementById('editor-foot-left');
   const editorFootR      = document.getElementById('editor-foot-right');
   const editorCoordsEl   = document.getElementById('editor-coords');
+  const settingsDlLink   = document.getElementById('settings-download-link');
   const editorMirrorCb   = document.getElementById('editor-mirror-cb');
   const btnEditorNew     = document.getElementById('btn-editor-new');
   const btnEditorRename  = document.getElementById('btn-editor-rename');
@@ -1611,6 +1632,16 @@
     return lines.join('\n');
   }
 
+  function updateDownloadLink() {
+    if (!settingsDlLink) return;
+    const content = generateSettingsJs();
+    const blob = new Blob([content], { type: 'text/javascript' });
+    const url  = URL.createObjectURL(blob);
+    if (settingsDlLink._blobUrl) URL.revokeObjectURL(settingsDlLink._blobUrl);
+    settingsDlLink._blobUrl = url;
+    settingsDlLink.href = url;
+  }
+
   // ── 15. Help overlay ─────────────────────────────────────────────────────────
 
   function openHelp()  { helpOverlay.hidden = false; }
@@ -1643,6 +1674,7 @@
   loadSettings();
   buildMovementList();
   hideCircle();
+  updateDownloadLink();
 
   // Keep --circle-d and circleSize = 90% of the stage's smaller dimension
   const stageEl = document.getElementById('stage');
