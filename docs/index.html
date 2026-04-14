@@ -470,6 +470,12 @@
       color: var(--fg);
     }
 
+    #help-qr-canvas {
+      display: block;
+      margin: 12px auto 0;
+      border-radius: var(--radius);
+    }
+
     #help-footer {
       flex-shrink: 0;
       background: #1a1a1a;
@@ -679,6 +685,40 @@
     to reposition it, or drag its toe to rotate it. Enable <strong>Mirror Feet</strong>
     for a stance where the feet are mirrored, so positioning one foot automatically
     positions the other one.</p>
+
+    <!-- Install instructions: JS reveals the correct platform block, hides the rest -->
+    <div id="help-install" hidden>
+
+      <div id="help-install-ios" hidden>
+        <h2>Run as a full-screen app (iPhone / iPad)</h2>
+        <p>Open this page in <strong>Safari</strong>, then:</p>
+        <ol>
+          <li>Tap the <strong>Share</strong> button (the box-with-arrow icon) at the
+              bottom of the screen.</li>
+          <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
+          <li>Tap <strong>Add</strong> — the app opens full-screen from your home
+              screen with no browser chrome.</li>
+        </ol>
+      </div>
+
+      <div id="help-install-android" hidden>
+        <h2>Run as a full-screen app (Android)</h2>
+        <p>Open this page in <strong>Chrome</strong>, then:</p>
+        <ol>
+          <li>Tap the <strong>three-dot menu</strong> (⋮) at the top right.</li>
+          <li>Tap <strong>Add to Home Screen</strong> or <strong>Install app</strong>.</li>
+          <li>Tap <strong>Add</strong> — the app opens full-screen from your home
+              screen with no browser chrome.</li>
+        </ol>
+      </div>
+
+      <div id="help-install-desktop" hidden>
+        <h2>Install on your mobile device</h2>
+        <p>Scan this code with your phone to open and install the app.</p>
+        <canvas id="help-qr-canvas"></canvas>
+      </div>
+
+    </div>
 
   </div>
 
@@ -1594,6 +1634,35 @@
     helpOverlay.hidden = true;
     localStorage.setItem(LS_KEYS.helpSeen, 'true');
   }
+
+  // Show platform-specific install instructions.
+  // iPad on desktop Safari reports 'MacIntel' with maxTouchPoints > 1.
+  (function showInstallInstructions() {
+    const ua = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/.test(ua) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/.test(ua);
+    document.getElementById('help-install').hidden = false;
+    if (isIOS || isAndroid) {
+      document.getElementById(isIOS ? 'help-install-ios' : 'help-install-android').hidden = false;
+    } else {
+      // Desktop: show QR code linking to this page, generated via CDN library loaded on demand.
+      const section = document.getElementById('help-install-desktop');
+      section.hidden = false;
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+      script.onload = () => {
+        QRCode.toCanvas(
+          document.getElementById('help-qr-canvas'),
+          window.location.href,
+          { width: 200, margin: 2, color: { dark: '#111111', light: '#e8e8e8' } },
+          err => { if (err) section.hidden = true; }
+        );
+      };
+      script.onerror = () => { section.hidden = true; };
+      document.head.appendChild(script);
+    }
+  })();
 
   btnHelp.addEventListener('click', openHelp);
   btnHelpClose.addEventListener('click', closeHelp);
