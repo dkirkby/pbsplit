@@ -9,7 +9,7 @@
 // Increment POSITIONS_REV when editing this file so the app reloads
 // fresh from disk, discarding any overrides stored in localStorage.
 
-const POSITIONS_REV = 3;
+const POSITIONS_REV = 4;
 
 const SETTINGS = {
   minWait:          0.5,

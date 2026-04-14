@@ -274,6 +274,7 @@
       background: var(--bg);
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
     #editor-overlay[hidden] { display: none; }
 
@@ -320,6 +321,7 @@
       flex: 1;
       position: relative;
       overflow: hidden;
+      --config-offset: 0px;  /* neutralize footer offset — editor stage is always full-height */
     }
     .foot-ghost {
       color: #2e2e2e;
